@@ -65,7 +65,7 @@ struct ContentView: View {
     //ガイドトーンモードの回答ステップ (0なら1段階目:3rd、1なら2段階目:7th)
     @State private var guideStep = 0
     //表示遅延（正解時、不正解時）
-    @State private var correctDelay: Double = 0.4
+    @State private var correctDelay: Double = 0.5
     @State private var wrongDelay: Double = 1.5
     
     
@@ -161,23 +161,35 @@ struct ContentView: View {
                                 .font(.title3)
                         }
 
-                        VStack(spacing: 12) {
+                        let columns = [
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ]
+                        
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            
                             ForEach(displayedTones, id: \.self) { tone in
                                 
-                                VStack(spacing: 2) {
+                                VStack(spacing: 4) {
                                     Text(tone)
                                         .font(.title2)
+
                                     if showingAnswer {
-                                        if let role = role(for: tone) {
-                                            Text(role)
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                        }
+                                        Text(role(for: tone) ?? "")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
                                     }
                                 }
+                                .frame(maxWidth: .infinity)
+                                .padding(8)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
                                 .opacity(showingAnswer ? 1 : 0)
                             }
                         }
+                        .padding()
                     }
                 }
                 
@@ -229,47 +241,18 @@ struct ContentView: View {
                     
                     //回答チェック
                     Button(action: {
-                        answerChecked = true
                         
-                        //ユーザーが回答した音
-                        let selectedSemitones =
-                        selectedNotes.compactMap { semitone(for: $0) }
-
-                        let correctSemitones =
-                        correctNotes.compactMap { noteToSemitone[$0] }
-                        
-                        let isCorrect = selectedSemitones.sorted() == correctSemitones.sorted()
-                        
-                        
-                        //デバッグ用
-                        print(isCorrect ? "Correct" : "Wrong")
+                        let isCorrect = checkAnswer()
                         
                         //判定表示
                         answerChecked = true
                         
-                        let delay = isCorrect ? correctDelay : wrongDelay
-                        
-                        //0.5秒後に次へ
-                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                            //ガイドトーンモードの時
-                            if mode == .guideTones {
-                                if guideStep == 0 {
-                                    //3rdを答えたら7thへ
-                                    guideStep = 1
-                                    selectedNotes = []
-                                    answerChecked = false
-                                } else {
-                                    //7thを答えたら次の問題へ
-                                    generateChord()
-                                }
-                                
-                            } else {
-                                //ガイドトーンモードでない時はすぐ次の問題へ
-                                generateChord()
-                            }
-                            
+                        if !isCorrect {
+                            showingAnswer = true
                         }
                         
+                        proceedAfterAnswer(isCorrect: isCorrect)
+
                     }) {
                         Text("Check")
                             .font(.title2)
@@ -462,7 +445,6 @@ struct ContentView: View {
         }
 
         //Check後・選択状態によりボタン色を決定
-        
         //異名同音(D♯とE♭など)への対応
         let correctSemitones = correctNotes.compactMap { noteToSemitone[$0] }
         let noteSemitone = semitone(for: note)
@@ -498,6 +480,39 @@ struct ContentView: View {
         return fullTones.first { $0.role == role }?.note
     }
     
+    func checkAnswer() -> Bool {
+        let selectedSemitones =
+            selectedNotes.compactMap { semitone(for: $0) }
+
+        let correctSemitones =
+            correctNotes.compactMap { noteToSemitone[$0] }
+
+        return selectedSemitones.sorted() == correctSemitones.sorted()
+    }
+    
+    
+    func proceedAfterAnswer(isCorrect: Bool) {
+        
+        let delay = isCorrect ? correctDelay : wrongDelay
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            
+            if mode == .guideTones {
+                if guideStep == 0 {
+                    guideStep = 1   //3rdを答えたら7thへ
+                    selectedNotes = []
+                    answerChecked = false
+                } else {
+                    generateChord() //7thを答えたら次の問題へ
+                }
+                
+            } else {
+                //ガイドトーンモードでない時はすぐ次の問題へ
+                generateChord()
+            }
+            
+        }
+    }
 }
 
 #Preview {
