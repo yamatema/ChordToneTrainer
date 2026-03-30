@@ -65,8 +65,8 @@ struct ContentView: View {
     //ガイドトーンモードの回答ステップ (0なら1段階目:3rd、1なら2段階目:7th)
     @State private var guideStep = 0
     //表示遅延（正解時、不正解時）
-    @State private var correctDelay: Double = 0.5
-    @State private var wrongDelay: Double = 1.5
+    @State private var correctDelay: Double = 1.0
+    @State private var wrongDelay: Double = 2.0
     
     
     
@@ -131,9 +131,7 @@ struct ContentView: View {
         } else {
             
             VStack {
-                
                 VStack {
-
                     // HEADER
                     HStack(spacing: 8) {
                         Text("Mode : ")
@@ -168,10 +166,9 @@ struct ContentView: View {
                             GridItem(.flexible())
                         ]
                         
+                        Spacer()
                         LazyVGrid(columns: columns, spacing: 16) {
-                            
                             ForEach(displayedTones, id: \.self) { tone in
-                                
                                 VStack(spacing: 4) {
                                     Text(tone)
                                         .font(.title2)
@@ -179,12 +176,12 @@ struct ContentView: View {
                                     if showingAnswer {
                                         Text(role(for: tone) ?? "")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(8)
-                                .background(Color.gray.opacity(0.1))
+                                .background(backgroundColor(for: tone))
+                                .foregroundColor(.white)
                                 .cornerRadius(8)
                                 .opacity(showingAnswer ? 1 : 0)
                             }
@@ -233,7 +230,7 @@ struct ContentView: View {
                             .font(.title2)
                             .padding()
                             .frame(maxWidth: 100)
-                            .background(Color.blue)
+                            .background(Color.green)
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
@@ -258,7 +255,7 @@ struct ContentView: View {
                             .font(.title2)
                             .padding()
                             .frame(maxWidth: 100)
-                            .background(Color.red)
+                            .background(Color.orange)
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
@@ -483,20 +480,15 @@ struct ContentView: View {
     func checkAnswer() -> Bool {
         let selectedSemitones =
             selectedNotes.compactMap { semitone(for: $0) }
-
         let correctSemitones =
             correctNotes.compactMap { noteToSemitone[$0] }
-
         return selectedSemitones.sorted() == correctSemitones.sorted()
     }
     
     
     func proceedAfterAnswer(isCorrect: Bool) {
-        
         let delay = isCorrect ? correctDelay : wrongDelay
-        
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            
             if mode == .guideTones {
                 if guideStep == 0 {
                     guideStep = 1   //3rdを答えたら7thへ
@@ -505,12 +497,21 @@ struct ContentView: View {
                 } else {
                     generateChord() //7thを答えたら次の問題へ
                 }
-                
             } else {
                 //ガイドトーンモードでない時はすぐ次の問題へ
                 generateChord()
             }
-            
+        }
+    }
+    
+    //
+    func backgroundColor(for tone: String) -> Color {
+        switch role(for: tone) {
+        case "root": return .gray
+        case "3rd": return .blue
+        case "5th": return .gray
+        case "7th": return .red
+        default: return .gray
         }
     }
 }
