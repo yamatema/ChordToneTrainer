@@ -126,6 +126,20 @@ struct ContentView: View {
         shuffleEnabled ? chordTones.shuffled() : chordTones
     }
     
+    //回答同時選択数（ボタンを押した状態にできる最大数）
+    var maxSelectableCount: Int {
+        switch mode {
+
+        case .chordToTones:
+            return correctNotes.count   // 7thなら4つ（将来テンションにも対応）
+
+        case .guideTones:
+            return 1   // 常に1音ずつ
+
+        default:
+            return correctNotes.count
+        }
+    }
     
     //画面描画
     var body: some View {
@@ -237,6 +251,7 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(buttonColor(for: note))
+                            .foregroundColor(textColor(for: note))
                             .cornerRadius(8)
                             .opacity(answerChecked ? 0.65 : 1.0)
                         }
@@ -460,7 +475,11 @@ struct ContentView: View {
         if selectedNotes.contains(note) {
             selectedNotes.removeAll { $0 == note }
         } else {
-            selectedNotes.append(note)
+            if maxSelectableCount == 1 {    //ガイドトーンモードの時
+                selectedNotes = [note]   // ← 最後に押したボタンが選択状態になるよう上書き
+            } else if selectedNotes.count < maxSelectableCount {
+                selectedNotes.append(note)
+            }
         }
     }
     
@@ -472,11 +491,13 @@ struct ContentView: View {
         
         //Check前・選択状態によりボタン色を決定
         if !answerChecked {
+            
             if isSelected {
-                return .blue.opacity(0.5)
-            } else {
-                return Color.gray.opacity(0.2)
+                return mode == .guideTones  //ガイドトーンの時は選択したボタンを少し濃くする
+                    ? .blue
+                    : .blue.opacity(0.5)
             }
+            return Color.gray.opacity(0.2)
         }
 
         //Check後・選択状態によりボタン色を決定
@@ -502,6 +523,19 @@ struct ContentView: View {
             
         return Color.gray.opacity(0.2)     //それ以外
 
+    }
+    
+    //回答UIボタンの文字色 ガイドトーン時のみ選択ボタンは文字色を白に
+    func textColor(for note: String) -> Color {
+        let isSelected = selectedNotes.contains(note)
+
+        if !answerChecked {
+            if mode == .guideTones && isSelected {
+                return .white   // ← 反転
+            }
+            return .blue       // ← 通常
+        }
+        return .blue
     }
     
 
