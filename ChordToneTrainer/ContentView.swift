@@ -276,7 +276,14 @@ struct ContentView: View {
                         answerChecked = true
                         
                         if !isCorrect {
-                            showingAnswer = true
+                            //ガイドトーンモード時：答えを表示するのは7thを答えたあとだけ（3rdの時は出さない）
+                            if mode == .guideTones {
+                                if guideStep == 1 {
+                                    showingAnswer = true
+                                }
+                            } else {
+                                showingAnswer = true
+                            }
                         }
                         
                         proceedAfterAnswer(isCorrect: isCorrect)
@@ -395,7 +402,7 @@ struct ContentView: View {
             
         case .guideTones:
             currentChord = root + chordType.name
-            chordTones = [ note(for: .root)!, note(for: .fifth)! ]
+            chordTones = fullTones.map { $0.note }
             
         case .tonesToChord:
             currentChord = "Which chord?"
