@@ -7,6 +7,31 @@
 
 import SwiftUI
 
+enum ToneRole: String {
+    case root = "root"
+    case third = "3rd"
+    case fifth = "5th"
+    case seventh = "7th"
+    //case ninth = "9th"
+    //case eleventh = "11th"
+    //case thirteenth = "13th"
+}
+
+extension ToneRole {
+    var color: Color {
+        switch self {
+        case .root: return .gray
+        case .third: return .blue
+        case .fifth: return .gray
+        case .seventh: return .red
+        //case .ninth: return .indigo
+        //case .eleventh: return .brown
+        //case .thirteenth: return .pink
+        
+        }
+    }
+}
+
 struct ContentView: View {
     
     enum QuizMode: String, CaseIterable {
@@ -19,7 +44,6 @@ struct ContentView: View {
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
     //回答UI 異名同音表記対応用
     let noteButtons = ["C","C♯/D♭","D","D♯/E♭","E","F","F♯/G♭","G","G♯/A♭","A","A♯/B♭","B"]
-    
     
     let chordTypes: [(name: String, intervals: [Int])] = [
         ("M7", [4,7,11]),
@@ -55,7 +79,7 @@ struct ContentView: View {
     @State private var chordTones: [String] = []
     @State private var currentChord: String = "ChordTones"
     //コードトーン（正解の中身）
-    @State private var fullTones: [(note: String, role: String)] = []
+    @State private var fullTones: [(note: String, role: ToneRole)] = []
     //コードトーンシャッフル（デフォルトはオフ）
     @State private var shuffleEnabled = false
     //プレイヤーの回答
@@ -79,9 +103,13 @@ struct ContentView: View {
 
         case .guideTones:
             if guideStep == 0 {
-                return [note(for: "3rd")!] //3rd
+                return fullTones
+                    .filter { $0.role == .third }
+                    .map { $0.note }
             } else {
-                return [note(for: "7th")!] //7th
+                return fullTones
+                    .filter { $0.role == .seventh }
+                    .map { $0.note }
             }
 
         case .chordToTones:
@@ -159,6 +187,7 @@ struct ContentView: View {
                                 .font(.title3)
                         }
 
+                        //問題文表示
                         let columns = [
                             GridItem(.flexible()),
                             GridItem(.flexible()),
@@ -167,20 +196,22 @@ struct ContentView: View {
                         ]
                         
                         Spacer()
+                        
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(displayedTones, id: \.self) { tone in
                                 VStack(spacing: 4) {
                                     Text(tone)
                                         .font(.title2)
 
-                                    if showingAnswer {
-                                        Text(role(for: tone) ?? "")
-                                            .font(.caption)
+                                    if showingAnswer, let role = role(for: tone) {
+                                            Text(role.rawValue)
+                                                .font(.caption)
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(8)
-                                .background(backgroundColor(for: tone))
+                                .background(
+                                    role(for: tone)?.color ?? Color.gray.opacity(0.2))
                                 .foregroundColor(.white)
                                 .cornerRadius(8)
                                 .opacity(showingAnswer ? 1 : 0)
@@ -230,7 +261,7 @@ struct ContentView: View {
                             .font(.title2)
                             .padding()
                             .frame(maxWidth: 100)
-                            .background(Color.green)
+                            .background(Color.gray)
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
@@ -255,7 +286,7 @@ struct ContentView: View {
                             .font(.title2)
                             .padding()
                             .frame(maxWidth: 100)
-                            .background(Color.orange)
+                            .background(Color.gray)
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
@@ -326,10 +357,10 @@ struct ContentView: View {
         fullTones = [] //リセット
         
         //root追加
-        fullTones.append((note: root, role: "root"))
+        fullTones.append((note: root, role: .root))
         
         //役割表記
-        let roles = ["3rd", "5th", "7th"]
+        let roles: [ToneRole] = [.third, .fifth, .seventh]
         
         for (i, interval) in chordType.intervals.enumerated() {
             
@@ -364,7 +395,7 @@ struct ContentView: View {
             
         case .guideTones:
             currentChord = root + chordType.name
-            chordTones = [ note(for: "root")!, note(for: "5th")! ] // root と 5th 表示
+            chordTones = [ note(for: .root)!, note(for: .fifth)! ]
             
         case .tonesToChord:
             currentChord = "Which chord?"
@@ -468,12 +499,12 @@ struct ContentView: View {
     
 
     //音から役割を取り出す関数
-    func role(for note: String) -> String? {
+    func role(for note: String) -> ToneRole? {
         return fullTones.first { $0.note == note }?.role
     }
     
     //役割から音を取り出す関数
-    func note(for role: String) -> String? {
+    func note(for role: ToneRole) -> String? {
         return fullTones.first { $0.role == role }?.note
     }
     
@@ -503,18 +534,9 @@ struct ContentView: View {
             }
         }
     }
-    
-    //
-    func backgroundColor(for tone: String) -> Color {
-        switch role(for: tone) {
-        case "root": return .gray
-        case "3rd": return .blue
-        case "5th": return .gray
-        case "7th": return .red
-        default: return .gray
-        }
-    }
 }
+
+
 
 #Preview {
     ContentView()
