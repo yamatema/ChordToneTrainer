@@ -214,7 +214,7 @@ struct ContentView: View {
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(displayedTones, id: \.self) { tone in
                                 VStack(spacing: 4) {
-                                    Text(tone)
+                                    Text(displayName(for: tone))
                                         .font(.title2)
 
                                     if showingAnswer, let role = role(for: tone) {
@@ -536,6 +536,30 @@ struct ContentView: View {
     //役割から音を取り出す関数
     func note(for role: ToneRole) -> String? {
         return fullTones.first { $0.role == role }?.note
+    }
+    
+    //答え表示の実音＋理論上音名の併記
+    func displayName(for note: String) -> String {
+        // 「C♯/D♭」みたいなケースはそのまま
+        if note.contains("/") {
+            return note
+        }
+
+        // 半音に変換できるか
+        guard let semitone = noteToSemitone[note] else {
+            return note
+        }
+
+        // 鍵盤上の代表音（notes配列から）
+        let realNote = notes[semitone]
+
+        // 理論名と一致してればそのまま
+        if realNote == note {
+            return note
+        }
+
+        // 違えば併記
+        return "\(realNote)（\(note)）"
     }
     
     //正誤判定
