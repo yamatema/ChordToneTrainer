@@ -284,22 +284,11 @@ struct ContentView: View {
                     
                     //回答チェック
                     Button(action: {
-                        
                         let isCorrect = checkAnswer()
                         
-                        //判定表示
                         answerChecked = true
                         
-                        if !isCorrect {
-                            //ガイドトーンモード時：答えを表示するのは7thを答えたあとだけ（3rdの時は出さない）
-                            if mode == .guideTones {
-                                if guideStep == 1 {
-                                    showingAnswer = true
-                                }
-                            } else {
-                                showingAnswer = true
-                            }
-                        }
+                        updateShowingAnswer(isCorrect: isCorrect)
                         
                         proceedAfterAnswer(isCorrect: isCorrect)
 
@@ -549,12 +538,27 @@ struct ContentView: View {
         return fullTones.first { $0.role == role }?.note
     }
     
+    //正誤判定
     func checkAnswer() -> Bool {
         let selectedSemitones =
             selectedNotes.compactMap { semitone(for: $0) }
         let correctSemitones =
             correctNotes.compactMap { noteToSemitone[$0] }
         return selectedSemitones.sorted() == correctSemitones.sorted()
+    }
+    
+    
+    func updateShowingAnswer(isCorrect: Bool) {
+        if !isCorrect {
+            //ガイドトーンモード時：答えを表示するのは7thを答えたあとだけ（3rdの時は出さない）
+            if mode == .guideTones {
+                if guideStep == 1 {
+                    showingAnswer = true
+                }
+            } else {
+                showingAnswer = true
+            }
+        }
     }
     
     
