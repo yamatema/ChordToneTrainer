@@ -141,6 +141,11 @@ struct ContentView: View {
         }
     }
     
+    
+    var isInputDisabled: Bool {
+        answerChecked || showingAnswer
+    }
+    
     //画面描画
     var body: some View {
         
@@ -253,9 +258,9 @@ struct ContentView: View {
                             .background(buttonColor(for: note))
                             .foregroundColor(textColor(for: note))
                             .cornerRadius(8)
-                            .opacity(answerChecked ? 0.65 : 1.0)
+                            .opacity(isInputDisabled ? 0.5 : 1.0)
                         }
-                        .disabled(answerChecked)
+                        .disabled(isInputDisabled)
                     }
                 }
                 .padding()
