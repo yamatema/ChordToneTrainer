@@ -35,6 +35,7 @@ extension ToneRole {
 struct ContentView: View {
     
     enum QuizMode: String, CaseIterable {
+        case sequential = "Sequential"
         case chordToTones = "Chord → Tones"
         case guideTones = "3rd & 7th"
         case tonesToChord = "Tones → Chord"
@@ -72,7 +73,7 @@ struct ContentView: View {
     
     @State private var gameStarted = false
     //現在のモード
-    @State private var mode: QuizMode = .chordToTones
+    @State private var mode: QuizMode = .sequential
     //
     @State private var showingAnswer = false
     //コードトーン（表示用）
@@ -80,6 +81,9 @@ struct ContentView: View {
     @State private var currentChord: String = "ChordTones"
     //コードトーン（正解の中身）
     @State private var fullTones: [(note: String, role: ToneRole)] = []
+    //回答させる順番
+    @State private var answerOrder: [ToneRole] = []
+    @State private var answerStep = 0
     //コードトーンシャッフル（デフォルトはオフ）
     @State private var shuffleEnabled = false
     //プレイヤーの回答
@@ -114,6 +118,12 @@ struct ContentView: View {
 
         case .chordToTones:
             return fullTones.map { $0.note }
+            
+        case .sequential:
+            let role = answerOrder[answerStep]
+            return fullTones
+                .filter { $0.role == role }
+                .map { $0.note }
 
         default:
             return fullTones.map { $0.note }
@@ -179,6 +189,7 @@ struct ContentView: View {
             
             VStack {
                 VStack {
+                    
                     // HEADER
                     HStack(spacing: 8) {
                         Text("Mode : ")
@@ -197,16 +208,20 @@ struct ContentView: View {
                     // MAIN
                     VStack(spacing: 20) {
 
+                        //問題文
                         Text(currentChord)
                             .font(.largeTitle)
                         
-                        //ガイドトーンモード時の問題文
                         if mode == .guideTones {
-                            Text(guideStep == 0 ? "3rd ?" : "7th ?")
+                            Text("\(roleLabel(answerOrder[guideStep])) ?")
+                                .font(.title3)
+                        }
+                        if mode == .sequential {
+                            Text("\(roleLabel(answerOrder[answerStep])) ?")
                                 .font(.title3)
                         }
 
-                        //問題文表示
+                        //正答部分
                         let columns = [
                             GridItem(.flexible()),
                             GridItem(.flexible()),
@@ -324,6 +339,8 @@ struct ContentView: View {
                 //モード切り替え
                 Button("Change Mode"){
                     switch mode {
+                    case .sequential:
+                        mode = .chordToTones
                     case .chordToTones:
                         mode = .guideTones
                     case .guideTones:
@@ -331,7 +348,7 @@ struct ContentView: View {
                     case .tonesToChord:
                         mode = .iiVIMode
                     case .iiVIMode:
-                        mode = .chordToTones
+                        mode = .sequential
                     }
                     generateChord()
                 }
@@ -405,6 +422,16 @@ struct ContentView: View {
         
         switch mode {
             
+        case .sequential:
+            currentChord = root + chordType.name
+            chordTones = fullTones.map { $0.note }
+
+            answerOrder = [.third, .fifth, .seventh]
+
+            if shuffleEnabled {
+                answerOrder.shuffle()
+            }
+            
         case .chordToTones:
             currentChord = root + chordType.name
             chordTones = fullTones.map { $0.note }
@@ -412,6 +439,7 @@ struct ContentView: View {
         case .guideTones:
             currentChord = root + chordType.name
             chordTones = fullTones.map { $0.note }
+            answerOrder = [.third, .seventh]
             
         case .tonesToChord:
             currentChord = "Which chord?"
@@ -428,7 +456,10 @@ struct ContentView: View {
         //Checkの後、Nextを押す際に回答をリセット
         selectedNotes = []
         answerChecked = false
+        //初期化
         guideStep = 0
+        answerStep = 0
+        
     }
     
     
@@ -533,14 +564,27 @@ struct ContentView: View {
     }
     
 
-    //音から役割を取り出す関数
+    //音から役割を取り出す
     func role(for note: String) -> ToneRole? {
         return fullTones.first { $0.note == note }?.role
     }
     
-    //役割から音を取り出す関数
+    //役割から音を取り出す
     func note(for role: ToneRole) -> String? {
         return fullTones.first { $0.role == role }?.note
+    }
+    
+    //問題文表示用ラベル
+    func roleLabel(_ role: ToneRole) -> String {
+        switch role {
+        case .root: return "Root"
+        case .third: return "3rd"
+        case .fifth: return "5th"
+        case .seventh: return "7th"
+        //case .ninth: return "9th"
+        //case .eleventh: return "11th"
+        //case .thirteenth: return "13th"
+        }
     }
     
     //答え表示の実音＋理論上音名の併記
@@ -578,21 +622,28 @@ struct ContentView: View {
     
     
     func updateShowingAnswer(isCorrect: Bool) {
-        if !isCorrect {
-            //ガイドトーンモード時：答えを表示するのは7thを答えたあとだけ（3rdの時は出さない）
-            if mode == .guideTones {
-                if guideStep == 1 {
-                    showingAnswer = true
-                }
-            } else {
-                showingAnswer = true
-            }
+        if !isCorrect && shouldShowAnswerOnWrong() {
+            showingAnswer = true
         }
+    }
+    
+    //小問を全て答えるまで正答を表示しない
+    func shouldShowAnswerOnWrong() -> Bool {
+        if mode == .guideTones {
+            return guideStep == 1
+        }
+
+        if mode == .sequential {
+            return answerStep == answerOrder.count - 1
+        }
+
+        return true
     }
     
     
     func proceedAfterAnswer(isCorrect: Bool) {
         let delay = isCorrect ? correctDelay : wrongDelay
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             if mode == .guideTones {
                 if guideStep == 0 {
@@ -601,6 +652,15 @@ struct ContentView: View {
                     answerChecked = false
                 } else {
                     generateChord() //7thを答えたら次の問題へ
+                }
+            } else if mode == .sequential {
+                if answerStep < answerOrder.count - 1 {
+                    answerStep += 1
+                    selectedNotes = []
+                    answerChecked = false
+                    return
+                } else {
+                    generateChord()
                 }
             } else {
                 //ガイドトーンモードでない時はすぐ次の問題へ
