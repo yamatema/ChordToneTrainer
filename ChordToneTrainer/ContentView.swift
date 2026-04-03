@@ -35,9 +35,9 @@ extension ToneRole {
 struct ContentView: View {
     
     enum QuizMode: String, CaseIterable {
-        case sequential = "Sequential"
         case chordToTones = "Chord → Tones"
         case guideTones = "3rd & 7th"
+        case sequential = "Sequential"
         case tonesToChord = "Tones → Chord"
         case iiVIMode = "ii-V-I"
     }
@@ -73,7 +73,7 @@ struct ContentView: View {
     
     @State private var gameStarted = false
     //現在のモード
-    @State private var mode: QuizMode = .sequential
+    @State private var mode: QuizMode = .chordToTones
     //
     @State private var showingAnswer = false
     //コードトーン（表示用）
@@ -81,17 +81,17 @@ struct ContentView: View {
     @State private var currentChord: String = "ChordTones"
     //コードトーン（正解の中身）
     @State private var fullTones: [(note: String, role: ToneRole)] = []
-    //回答させる順番
-    @State private var answerOrder: [ToneRole] = []
-    @State private var answerStep = 0
-    //コードトーンシャッフル（デフォルトはオフ）
+    //回答順シャッフル（デフォルトはオフ）
     @State private var shuffleEnabled = false
     //プレイヤーの回答
     @State private var selectedNotes: [String] = []
     //正解判定をしたかどうか
     @State private var answerChecked = false
-    //ガイドトーンモードの回答ステップ (0なら1段階目:3rd、1なら2段階目:7th)
+    //guideTonesモード 回答ステップ
     @State private var guideStep = 0
+    //sequentialモード 回答させる順番・ステップ
+    @State private var answerOrder: [ToneRole] = []
+    @State private var answerStep = 0
     //表示遅延（正解時、不正解時）
     @State private var correctDelay: Double = 1.0
     @State private var wrongDelay: Double = 2.0
@@ -131,9 +131,11 @@ struct ContentView: View {
     }
     
     
-    //表示用のコードトーン（コードトーンシャッフルへの対応）
+    //正答表示
     var displayedTones: [String] {
-        shuffleEnabled ? chordTones.shuffled() : chordTones
+        //とりあえず答えの順番は入れ替えないものとする
+        //shuffleEnabled ? chordTones.shuffled() : chordTones
+        return chordTones
     }
     
     //回答同時選択数（ボタンを押した状態にできる最大数）
@@ -154,6 +156,10 @@ struct ContentView: View {
     
     var isInputDisabled: Bool {
         answerChecked || showingAnswer
+    }
+    
+    var isShuffleAvailable: Bool {
+        mode == .guideTones || mode == .sequential
     }
     
     //画面描画
@@ -329,7 +335,8 @@ struct ContentView: View {
                     
                     //コードトーンのシャッフル機能をON/OFF
                     Toggle("Chord Tone Shuffle", isOn: $shuffleEnabled)
-                        //.labelsHidden()
+                        .disabled(!isShuffleAvailable)
+                        .opacity(isShuffleAvailable ? 1.0 : 0.3)
 
                 }
                 .padding(.horizontal, 40)
@@ -339,16 +346,20 @@ struct ContentView: View {
                 //モード切り替え
                 Button("Change Mode"){
                     switch mode {
-                    case .sequential:
-                        mode = .chordToTones
                     case .chordToTones:
+                        mode = .sequential
+                    case .sequential:
                         mode = .guideTones
                     case .guideTones:
                         mode = .tonesToChord
                     case .tonesToChord:
                         mode = .iiVIMode
                     case .iiVIMode:
-                        mode = .sequential
+                        mode = .chordToTones
+                    }
+                    
+                    if !isShuffleAvailable {
+                        shuffleEnabled = false
                     }
                     generateChord()
                 }
@@ -422,16 +433,6 @@ struct ContentView: View {
         
         switch mode {
             
-        case .sequential:
-            currentChord = root + chordType.name
-            chordTones = fullTones.map { $0.note }
-
-            answerOrder = [.third, .fifth, .seventh]
-
-            if shuffleEnabled {
-                answerOrder.shuffle()
-            }
-            
         case .chordToTones:
             currentChord = root + chordType.name
             chordTones = fullTones.map { $0.note }
@@ -440,6 +441,15 @@ struct ContentView: View {
             currentChord = root + chordType.name
             chordTones = fullTones.map { $0.note }
             answerOrder = [.third, .seventh]
+            
+        case .sequential:
+            currentChord = root + chordType.name
+            chordTones = fullTones.map { $0.note }
+            answerOrder = [.third, .fifth, .seventh]
+
+            if shuffleEnabled {
+                answerOrder.shuffle()
+            }
             
         case .tonesToChord:
             currentChord = "Which chord?"
