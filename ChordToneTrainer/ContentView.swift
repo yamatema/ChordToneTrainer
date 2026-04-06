@@ -162,6 +162,9 @@ struct ContentView: View {
         mode == .guideTones || mode == .sequential
     }
     
+    var isCheckDisabled: Bool {
+        showingAnswer || answerChecked
+    }
     //画面描画
     var body: some View {
         
@@ -326,8 +329,9 @@ struct ContentView: View {
                             .background(Color.gray)
                             .foregroundColor(.white)
                             .cornerRadius(12)
+                            .opacity(isCheckDisabled ? 0.5 : 1.0)
                     }
-                    
+                    .disabled(isCheckDisabled)
                 }
                 
                 HStack {
