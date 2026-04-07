@@ -32,6 +32,14 @@ extension ToneRole {
     }
 }
 
+struct IIVIProgression {
+    let ii: String
+    let v: String
+    let i: String
+    let root: String
+    let chordType: (name: String, intervals: [Int])
+}
+
 struct ContentView: View {
     
     enum QuizMode: String, CaseIterable {
@@ -79,6 +87,8 @@ struct ContentView: View {
     //コードトーン（表示用）
     @State private var chordTones: [String] = []
     @State private var currentChord: String = "ChordTones"
+    //コード進行（表示用。ii-V-Iモード限定）
+    @State private var currentProgression: IIVIProgression? = nil
     //コードトーン（正解の中身）
     @State private var fullTones: [(note: String, role: ToneRole)] = []
     //回答順シャッフル（デフォルトはオフ）
@@ -203,17 +213,34 @@ struct ContentView: View {
                     VStack(spacing: 20) {
 
                         //問題文
-                        Text(currentChord)
+                        if mode == .iiVIMode, let p = currentProgression {
+                            HStack(spacing: 6) {
+                                Text(p.ii)
+                                Text("→")
+                                Text(p.v)
+                                Text("→")
+                                Text(p.i)
+                                    .padding(6)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(6)
+                            }
                             .font(.largeTitle)
+
+                        } else {
+                            Text(currentChord)
+                                .font(.largeTitle)
+
+                        }
                         
-                        
+                        //どれを答えるかの表示
                         if answerStep < answerOrder.count {
                             Text("\(roleLabel(answerOrder[answerStep])) ?")
                                 .font(.title3)
 
                         }
                         
-                        //正答部分
+                        //正答部分の枠
                         let columns = [
                             GridItem(.flexible()),
                             GridItem(.flexible()),
@@ -221,8 +248,9 @@ struct ContentView: View {
                             GridItem(.flexible())
                         ]
                         
-                        Spacer()
+                        //Spacer()
                         
+                        //正答部分の中身
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(displayedTones, id: \.self) { tone in
                                 VStack(spacing: 4) {
@@ -378,10 +406,12 @@ struct ContentView: View {
             let result = generateIIVI()
             
             //上書きしてる
-            currentChord = result.progressionText
+            currentProgression = result
             actualRoot = result.root
             actualChordType = result.chordType
             
+        } else {
+            currentProgression = nil
         }
         
         let rootLetter = String(actualRoot.prefix(1))
@@ -424,11 +454,6 @@ struct ContentView: View {
                 
             fullTones.append((note: theoretical, role: roles[i]))
         }
-        //print(fullTones)
-        print("---")
-        print("actualRoot: ", actualRoot)
-        print("rootLetter: ", rootLetter)
-        print("rootLetterIndex: ", rootLetterIndex)
         
         switch mode {
             
@@ -456,6 +481,7 @@ struct ContentView: View {
             chordTones = fullTones.map { $0.note }
             
         case .iiVIMode:
+            chordTones = fullTones.map { $0.note }
             answerOrder = [.third, .seventh]
             
         }
@@ -471,7 +497,7 @@ struct ContentView: View {
     }
     
     
-    func generateIIVI() -> (progressionText: String, root: String, chordType: (name: String, intervals: [Int])) {
+    func generateIIVI() -> IIVIProgression {
         
         let rootIndex = Int.random(in: 0..<notes.count)
         let root = notes[rootIndex]
@@ -483,10 +509,14 @@ struct ContentView: View {
         let v = notes[vIndex] + "7"
         let i = root + "M7"
         
-        let question = ii + " → " + v + " → " + i
-        
         let major7 = chordTypes.first { $0.name == "M7" }!
-        return (question, root, major7)
+        return IIVIProgression(
+            ii: ii,
+            v: v,
+            i: i,
+            root: root,
+            chordType: major7
+        )
     }
     
     
