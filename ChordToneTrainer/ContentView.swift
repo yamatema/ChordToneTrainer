@@ -57,17 +57,17 @@ struct ContentView: View {
     //回答時に異名同音を同じものとして扱うため
     let noteToSemitone: [String:Int] = [
     "C":0, "B♯":0, "D♭♭":0,
-    "C♯":1, "D♭":1,
-    "D":2, "E♭♭":2,
+    "C♯":1, "D♭":1, "B♯♯":1,
+    "D":2, "E♭♭":2, "C♯♯":2,
     "D♯":3, "E♭":3, "F♭♭":3,
-    "E":4, "F♭":4,
+    "E":4, "F♭":4, "D♯♯":4,
     "F":5, "E♯":5, "G♭♭":5,
-    "F♯":6, "G♭":6,
-    "G":7, "A♭♭":7,
+    "F♯":6, "G♭":6, "E♯♯":6,
+    "G":7, "A♭♭":7, "F♯♯":7,
     "G♯":8, "A♭":8,
-    "A":9, "B♭♭":9,
+    "A":9, "B♭♭":9, "G♯♯":9,
     "A♯":10, "B♭":10, "C♭♭":10,
-    "B":11, "C♭":11
+    "B":11, "C♭":11, "A♯♯":11
     ]
     
     
@@ -88,7 +88,7 @@ struct ContentView: View {
     //正解判定をしたかどうか
     @State private var answerChecked = false
     //guideTonesモード 回答ステップ
-    @State private var guideStep = 0
+    //@State private var guideStep = 0
     //sequentialモード 回答させる順番・ステップ
     @State private var answerOrder: [ToneRole] = []
     @State private var answerStep = 0
@@ -102,32 +102,17 @@ struct ContentView: View {
     var correctNotes: [String] {
 
         guard fullTones.count >= 3 else { return [] }
-
-        switch mode {
-
-        case .guideTones:
-            if guideStep == 0 {
-                return fullTones
-                    .filter { $0.role == .third }
-                    .map { $0.note }
-            } else {
-                return fullTones
-                    .filter { $0.role == .seventh }
-                    .map { $0.note }
-            }
-
-        case .chordToTones:
-            return fullTones.map { $0.note }
-            
-        case .sequential:
-            let role = answerOrder[answerStep]
-            return fullTones
-                .filter { $0.role == role }
-                .map { $0.note }
-
-        default:
+        
+        if answerOrder.isEmpty {
             return fullTones.map { $0.note }
         }
+
+        let role = answerOrder[answerStep]
+
+        return fullTones
+            .filter { $0.role == role }
+            .map { $0.note }
+
     }
     
     
@@ -221,15 +206,13 @@ struct ContentView: View {
                         Text(currentChord)
                             .font(.largeTitle)
                         
-                        if mode == .guideTones {
-                            Text("\(roleLabel(answerOrder[guideStep])) ?")
-                                .font(.title3)
-                        }
-                        if mode == .sequential {
+                        
+                        if answerStep < answerOrder.count {
                             Text("\(roleLabel(answerOrder[answerStep])) ?")
                                 .font(.title3)
-                        }
 
+                        }
+                        
                         //正答部分
                         let columns = [
                             GridItem(.flexible()),
@@ -388,38 +371,45 @@ struct ContentView: View {
         let chordType = chordTypes.randomElement()!
         
         let root = notes[rootIndex]
-        let rootLetter = String(root.prefix(1))
-        let rootLetterIndex = letters.firstIndex(of: rootLetter)!
+        var actualRoot = root
+        var actualChordType = chordType
         
-        //ii-V-Iモード時
         if mode == .iiVIMode {
             let result = generateIIVI()
             
-            currentChord = result.0
-            chordTones = [result.1]
+            //上書きしてる
+            currentChord = result.progressionText
+            actualRoot = result.root
+            actualChordType = result.chordType
             
-            showingAnswer = false
-            return
         }
         
-        fullTones = [] //リセット
+        let rootLetter = String(actualRoot.prefix(1))
+        let rootLetterIndex = letters.firstIndex(of: rootLetter)!
+        
+        //リセット
+        fullTones = []
+        answerOrder = []
+        answerStep = 0
+        
         
         //root追加
-        fullTones.append((note: root, role: .root))
+        fullTones.append((note: actualRoot, role: .root))
         
-        //役割表記
+        //3rd以降の音と役割表記の追加
         let roles: [ToneRole] = [.third, .fifth, .seventh]
+    
+        let rootSemitone = noteToSemitone[actualRoot]!
         
-        for (i, interval) in chordType.intervals.enumerated() {
+        for (i, interval) in actualChordType.intervals.enumerated() {
             
-            let realIndex = (rootIndex + interval) % 12
+            let realSemitone = (rootSemitone + interval) % 12
             
             let letterIndex = (rootLetterIndex + degreeSteps[i]) % 7
             let baseLetter = letters[letterIndex]
             
             let baseSemitone = naturalSemitones[baseLetter]!
-            let realSemitone = realIndex
-            
+
             var diff = realSemitone - baseSemitone
             if diff > 6 { diff -= 12 }
             if diff < -6 { diff += 12 }
@@ -434,20 +424,26 @@ struct ContentView: View {
                 
             fullTones.append((note: theoretical, role: roles[i]))
         }
+        //print(fullTones)
+        print("---")
+        print("actualRoot: ", actualRoot)
+        print("rootLetter: ", rootLetter)
+        print("rootLetterIndex: ", rootLetterIndex)
         
         switch mode {
             
         case .chordToTones:
-            currentChord = root + chordType.name
+            currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
+            answerOrder = []
             
         case .guideTones:
-            currentChord = root + chordType.name
+            currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
             answerOrder = [.third, .seventh]
             
         case .sequential:
-            currentChord = root + chordType.name
+            currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
             answerOrder = [.third, .fifth, .seventh]
 
@@ -460,9 +456,10 @@ struct ContentView: View {
             chordTones = fullTones.map { $0.note }
             
         case .iiVIMode:
-            break
+            answerOrder = [.third, .seventh]
             
         }
+        
         
         
         showingAnswer = false
@@ -470,14 +467,11 @@ struct ContentView: View {
         //Checkの後、Nextを押す際に回答をリセット
         selectedNotes = []
         answerChecked = false
-        //初期化
-        guideStep = 0
-        answerStep = 0
         
     }
     
     
-    func generateIIVI() -> (String, String) {
+    func generateIIVI() -> (progressionText: String, root: String, chordType: (name: String, intervals: [Int])) {
         
         let rootIndex = Int.random(in: 0..<notes.count)
         let root = notes[rootIndex]
@@ -489,9 +483,10 @@ struct ContentView: View {
         let v = notes[vIndex] + "7"
         let i = root + "M7"
         
-        let question = ii + " → " + v + " → ?"
+        let question = ii + " → " + v + " → " + i
         
-        return (question, i)
+        let major7 = chordTypes.first { $0.name == "M7" }!
+        return (question, root, major7)
     }
     
     
@@ -643,11 +638,7 @@ struct ContentView: View {
     
     //小問を全て答えるまで正答を表示しない
     func shouldShowAnswerOnWrong() -> Bool {
-        if mode == .guideTones {
-            return guideStep == 1
-        }
-
-        if mode == .sequential {
+        if answerStep < answerOrder.count {
             return answerStep == answerOrder.count - 1
         }
 
@@ -659,29 +650,16 @@ struct ContentView: View {
         let delay = isCorrect ? correctDelay : wrongDelay
         
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            if mode == .guideTones {
-                if guideStep == 0 {
-                    guideStep = 1   //3rdを答えたら7thへ
-                    selectedNotes = []
-                    answerChecked = false
-                } else {
-                    generateChord() //7thを答えたら次の問題へ
-                }
-            } else if mode == .sequential {
-                if answerStep < answerOrder.count - 1 {
-                    answerStep += 1
-                    selectedNotes = []
-                    answerChecked = false
-                    return
-                } else {
-                    generateChord()
-                }
+            if answerStep < answerOrder.count - 1 {
+                answerStep += 1
+                selectedNotes = []
+                answerChecked = false
             } else {
-                //ガイドトーンモードでない時はすぐ次の問題へ
                 generateChord()
             }
         }
     }
+    
 }
 
 
