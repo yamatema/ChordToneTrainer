@@ -102,10 +102,10 @@ struct ContentView: View {
     //sequentialモード 回答させる順番・ステップ
     @State private var answerOrder: [ToneRole] = []
     @State private var answerStep = 0
-    //表示遅延（正解時、不正解時）
+    //表示遅延（正解時、不正解時）および遅延中フラグ
     @State private var correctDelay: Double = 1.0
     @State private var wrongDelay: Double = 2.0
-    
+    @State private var isProcessing = false
     
     
     //正誤判定用：正解ノート
@@ -175,7 +175,7 @@ struct ContentView: View {
     }
     
     var isInputDisabled: Bool {
-        answerChecked || showingAnswer
+        answerChecked || showingAnswer || isProcessing
     }
     
     var isShuffleAvailable: Bool {
@@ -354,6 +354,8 @@ struct ContentView: View {
                             .cornerRadius(12)
                     }
                     .padding()
+                    .disabled(isProcessing)
+                    .opacity(isProcessing ? 0.5 : 1.0)
                     
                     //回答チェック
                     Button(action: {
@@ -373,9 +375,10 @@ struct ContentView: View {
                             .background(Color.gray)
                             .foregroundColor(.white)
                             .cornerRadius(12)
-                            .opacity(isCheckDisabled ? 0.5 : 1.0)
                     }
+                    .padding()
                     .disabled(isCheckDisabled)
+                    .opacity(isCheckDisabled ? 0.5 : 1.0)
                 }
                 
                 HStack {
@@ -411,6 +414,7 @@ struct ContentView: View {
                     generateChord()
                 }
                 .padding(.bottom, 40)
+                .disabled(isProcessing || showingAnswer)
             }
         }
     }
@@ -708,8 +712,10 @@ struct ContentView: View {
     
     func proceedAfterAnswer(isCorrect: Bool) {
         let delay = isCorrect ? correctDelay : wrongDelay
+        isProcessing = true
         
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            isProcessing = false
             if answerStep < answerOrder.count - 1 {
                 answerStep += 1
                 selectedNotes = []
