@@ -142,24 +142,50 @@ struct ContentView: View {
 
         case .guideTones:
             return 1   // 常に1音ずつ
+            
+        case .sequential:
+            return 1
+            
+        case .iiVIMode:
+            return 1
 
         default:
             return correctNotes.count
         }
     }
     
+    //答えさせる(target)音
+    var targetRoles: [ToneRole] {
+        switch mode {
+        case .chordToTones:
+            return fullTones.map { $0.role }
+            
+        case .guideTones:
+            return answerOrder
+            
+        case .sequential:
+            return answerOrder
+            
+        case .iiVIMode:
+            return answerOrder
+            
+        default:
+            return []
+        }
+    }
     
     var isInputDisabled: Bool {
         answerChecked || showingAnswer
     }
     
     var isShuffleAvailable: Bool {
-        mode == .guideTones || mode == .sequential
+        mode == .guideTones || mode == .sequential || mode == .iiVIMode
     }
     
     var isCheckDisabled: Bool {
         showingAnswer || answerChecked
     }
+    
     //画面描画
     var body: some View {
         
@@ -238,6 +264,13 @@ struct ContentView: View {
                             Text("\(roleLabel(answerOrder[answerStep])) ?")
                                 .font(.title3)
 
+                        } else if mode == .chordToTones {
+                            let rolesText = targetRoles
+                                .map { roleLabel($0) }
+                                .joined(separator: ", ")
+
+                            Text("\(rolesText)?")
+                                .font(.title3)
                         }
                         
                         //正答部分の枠
@@ -348,8 +381,7 @@ struct ContentView: View {
                 HStack {
                     Spacer()
                     
-                    //コードトーンのシャッフル機能をON/OFF
-                    Toggle("Chord Tone Shuffle", isOn: $shuffleEnabled)
+                    Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                         .disabled(!isShuffleAvailable)
                         .opacity(isShuffleAvailable ? 1.0 : 0.3)
 
@@ -471,10 +503,6 @@ struct ContentView: View {
             currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
             answerOrder = [.third, .fifth, .seventh]
-
-            if shuffleEnabled {
-                answerOrder.shuffle()
-            }
             
         case .tonesToChord:
             currentChord = "Which chord?"
@@ -486,7 +514,9 @@ struct ContentView: View {
             
         }
         
-        
+        if shuffleEnabled {
+            answerOrder.shuffle()
+        }
         
         showingAnswer = false
         
