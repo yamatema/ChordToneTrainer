@@ -81,7 +81,7 @@ struct ContentView: View {
     
     @State private var gameStarted = false
     //現在のモード
-    @State private var mode: QuizMode = .chordToTones
+    @State private var mode: QuizMode = .tonesToChord
     //
     @State private var showingAnswer = false
     //コードトーン（表示用）
@@ -95,6 +95,10 @@ struct ContentView: View {
     @State private var shuffleEnabled = false
     //プレイヤーの回答
     @State private var selectedNotes: [String] = []
+    @State private var selectedChord: String? = nil //tonesToChordモード専用
+    //tonesToChordモード用
+    @State private var currentRoot: String = ""
+    @State private var currentChordType: String = ""
     //正解判定をしたかどうか
     @State private var answerChecked = false
     //guideTonesモード 回答ステップ
@@ -107,6 +111,15 @@ struct ContentView: View {
     @State private var wrongDelay: Double = 2.0
     @State private var isProcessing = false
     
+    
+    var problemText: String {
+        if mode == .tonesToChord {
+            return "\(displayedTones.joined(separator: " ")) → ?"
+            
+        } else {
+            return "\(currentChord)"
+        }
+    }
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
@@ -254,8 +267,14 @@ struct ContentView: View {
                             .font(.largeTitle)
 
                         } else {
-                            Text(currentChord)
-                                .font(.largeTitle)
+                            if mode == .tonesToChord {
+                                Text(chordTones.joined(separator: " ") + " → ?")
+                                    .font(.largeTitle)
+                            } else {
+                                Text(currentChord)
+                                    .font(.largeTitle)
+                            }
+                                
 
                         }
                         
@@ -289,49 +308,72 @@ struct ContentView: View {
                                 VStack(spacing: 4) {
                                     Text(displayName(for: tone))
                                         .font(.title2)
-
-                                    if showingAnswer, let role = role(for: tone) {
-                                            Text(role.rawValue)
-                                                .font(.caption)
+                                if showingAnswer, let role = role(for: tone) {
+                                    Text(role.rawValue)
+                                        .font(.caption)
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(8)
                                 .background(
                                     role(for: tone)?.color ?? Color.gray.opacity(0.2))
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                                .opacity(showingAnswer ? 1 : 0)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                                    .opacity(showingAnswer ? 1 : 0)
                             }
-                        }
-                        .padding()
+                        }.padding()
                     }
                 }
                 
                 
                 
                 //回答用ボタンUI
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                    
-                    ForEach(noteButtons, id: \.self) { note in
-                        
-                        Button(action: {
-                            toggleSelection(note)
-
-                        }) {
-                            Text(note)
-                            .font(.title2)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(buttonColor(for: note))
-                            .foregroundColor(textColor(for: note))
-                            .cornerRadius(8)
-                            .opacity(isInputDisabled ? 0.5 : 1.0)
+                //コード選択UI
+                if mode == .tonesToChord {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                        ForEach(chordTypes, id: \.name) { type in
+                            Button {
+                                if selectedChord == type.name {
+                                    selectedChord = nil
+                                } else {
+                                    selectedChord = type.name
+                                }
+                                
+                            } label: {
+                                
+                                Text(currentRoot + type.name)
+                                    .font(.title2)
+                                    .padding()
+                                    .background(buttonColor(for: type.name))
+                                    .foregroundColor(textColor(for: type.name))
+                                    .cornerRadius(8)
+                            }
+                            
                         }
-                        .disabled(isInputDisabled)
                     }
+                } else {
+                //音選択UI
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                        
+                        ForEach(noteButtons, id: \.self) { note in
+                            Button(action: {
+                                toggleSelection(note)
+                                
+                            }) {
+                                Text(note)
+                                    .font(.title2)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(buttonColor(for: note))
+                                    .foregroundColor(textColor(for: note))
+                                    .cornerRadius(8)
+                                    .opacity(isInputDisabled ? 0.5 : 1.0)
+                            }
+                            .disabled(isInputDisabled)
+                        }
+                    }.padding()
                 }
-                .padding()
+                
                 
                 
 
@@ -340,6 +382,11 @@ struct ContentView: View {
                     // CONTROLS
                     Button(action: {
                         if showingAnswer {
+                            
+                            if mode == .tonesToChord {
+                                selectedChord = nil
+                            }
+                            
                             generateChord()
                         } else {
                             showingAnswer = true
@@ -376,7 +423,6 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
-                    .padding()
                     .disabled(isCheckDisabled)
                     .opacity(isCheckDisabled ? 0.5 : 1.0)
                 }
@@ -411,6 +457,13 @@ struct ContentView: View {
                     if !isShuffleAvailable {
                         shuffleEnabled = false
                     }
+                    
+                    if mode == .tonesToChord {
+                        selectedNotes.removeAll()
+                    } else {
+                        selectedChord = nil
+                    }
+                    
                     generateChord()
                 }
                 .padding(.bottom, 40)
@@ -509,8 +562,9 @@ struct ContentView: View {
             answerOrder = [.third, .fifth, .seventh]
             
         case .tonesToChord:
-            currentChord = "Which chord?"
+            currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
+            
             
         case .iiVIMode:
             chordTones = fullTones.map { $0.note }
@@ -527,6 +581,9 @@ struct ContentView: View {
         //Checkの後、Nextを押す際に回答をリセット
         selectedNotes = []
         answerChecked = false
+        
+        currentRoot = actualRoot
+        currentChordType = actualChordType.name
         
     }
     
@@ -583,56 +640,97 @@ struct ContentView: View {
     
     
     //回答UIのボタン色（選択/非選択、正解/不正解）決定
-    func buttonColor(for note: String) -> Color {
-        //選択中かどうか
-        let isSelected = selectedNotes.contains(note)
+    func buttonColor(for value: String) -> Color {
         
-        //Check前・選択状態によりボタン色を決定
+        if mode == .tonesToChord {
+            let isSelected = (selectedChord == value)
+        
+            if !answerChecked {
+                return isSelected ? .blue : .gray.opacity(0.2)
+            }
+            
+            let isCorrect = (value == currentChordType)
+            
+            if isSelected && isCorrect {
+                return .green                  //選択していて正解
+            }
+            
+            if isSelected && !isCorrect {
+                return .red                    //選択していて不正解
+            }
+
+            if !isSelected && isCorrect {
+                return .green.opacity(0.3)     //選択していなかった正解
+            }
+                
+            return Color.gray.opacity(0.2)     //それ以外
+        }
+        
+        
+        let isSelected = selectedNotes.contains(value)
+        
+        //Check前
         if !answerChecked {
             
             if isSelected {
-                return mode == .guideTones  //ガイドトーンの時は選択したボタンを少し濃くする
-                    ? .blue
-                    : .blue.opacity(0.5)
+                return .blue
             }
+            
             return Color.gray.opacity(0.2)
         }
 
-        //Check後・選択状態によりボタン色を決定
+        //Check後
         //異名同音(D♯とE♭など)への対応
         let correctSemitones = correctNotes.compactMap { noteToSemitone[$0] }
-        let noteSemitone = semitone(for: note)
+        let noteSemitone = semitone(for: value)
 
         //正解かどうか
         let isCorrect = noteSemitone.map { correctSemitones.contains($0) } ?? false
 
             
         if isSelected && isCorrect {
-            return .green                  //選択していて正解
+            return .green
         }
         
         if isSelected && !isCorrect {
-            return .red                    //選択していて不正解
+            return .red
         }
 
         if !isSelected && isCorrect {
-            return .green.opacity(0.3)     //選択していなかった正解
+            return .green.opacity(0.3)
         }
             
-        return Color.gray.opacity(0.2)     //それ以外
+        return Color.gray.opacity(0.2)
 
     }
     
-    //回答UIボタンの文字色 ガイドトーン時のみ選択ボタンは文字色を白に
-    func textColor(for note: String) -> Color {
-        let isSelected = selectedNotes.contains(note)
+    
+    //回答UIボタンの文字色
+    func textColor(for value: String) -> Color {
+        if mode == .tonesToChord {
+            let isSelected = (selectedChord == value)
+
+            if !answerChecked {
+                return isSelected ? .white : .blue
+            }
+            
+            if isSelected {
+                return .white
+            }
+            
+            return .blue
+        }
+        
+        let isSelected = selectedNotes.contains(value)
 
         if !answerChecked {
-            if mode == .guideTones && isSelected {
-                return .white   // ← 反転
-            }
-            return .blue       // ← 通常
+            return isSelected ? .white : .blue
         }
+        
+        if isSelected {
+            return .white
+        }
+        
         return .blue
     }
     
@@ -686,6 +784,10 @@ struct ContentView: View {
     
     //正誤判定
     func checkAnswer() -> Bool {
+        if mode == .tonesToChord {
+            return selectedChord == currentChordType
+        }
+        
         let selectedSemitones =
             selectedNotes.compactMap { semitone(for: $0) }
         let correctSemitones =
@@ -721,6 +823,9 @@ struct ContentView: View {
                 selectedNotes = []
                 answerChecked = false
             } else {
+                if mode == .tonesToChord {
+                    selectedChord = nil
+                }
                 generateChord()
             }
         }
