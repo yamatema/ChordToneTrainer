@@ -135,6 +135,7 @@ struct ContentView: View {
             return fullTones.map { $0.note }
         }
 
+        guard answerStep < answerOrder.count else { return [] }
         let role = answerOrder[answerStep]
 
         return fullTones
@@ -167,8 +168,9 @@ struct ContentView: View {
         case .iiVIMode:
             return 1
 
-        default:
-            return correctNotes.count
+        case .tonesToChord:
+            return 1
+            
         }
     }
     
@@ -187,7 +189,7 @@ struct ContentView: View {
         case .iiVIMode:
             return answerOrder
             
-        default:
+        case .tonesToChord:
             return []
         }
     }
