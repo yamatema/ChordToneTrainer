@@ -104,6 +104,7 @@ struct ContentView: View {
     //tonesToChordモード用
     @State private var currentRoot: String = ""
     @State private var currentChordType: String = ""
+    @State private var currentChordOptions: [(name: String, intervals: [Int])] = []
     //正解判定をしたかどうか
     @State private var answerChecked = false
     //guideTonesモード 回答ステップ
@@ -116,15 +117,6 @@ struct ContentView: View {
     @State private var wrongDelay: Double = 2.0
     @State private var isProcessing = false
     
-    
-    var problemText: String {
-        if mode == .tonesToChord {
-            return "\(displayedTones.joined(separator: " ")) → ?"
-            
-        } else {
-            return "\(currentChord)"
-        }
-    }
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
@@ -337,8 +329,8 @@ struct ContentView: View {
                 //回答用ボタンUI
                 //コード選択UI
                 if mode == .tonesToChord {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                        ForEach(chordTypes, id: \.name) { type in
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                        ForEach(currentChordOptions, id: \.name) { type in
                             Button {
                                 if selectedChord == type.name {
                                     selectedChord = nil
@@ -577,6 +569,13 @@ struct ContentView: View {
             currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
             
+            //誤答(distractor)生成
+            let correctType = actualChordType
+            var wrongChoices = chordTypes.filter { $0.name != correctType.name }
+            wrongChoices.shuffle()
+            let selectedWrong = Array(wrongChoices.prefix(3))
+            //回答UIシャッフル
+            currentChordOptions = ([correctType] + selectedWrong).shuffled()
             
         case .iiVIMode:
             chordTones = fullTones.map { $0.note }
@@ -596,6 +595,7 @@ struct ContentView: View {
         
         currentRoot = actualRoot
         currentChordType = actualChordType.name
+        
         
     }
     
