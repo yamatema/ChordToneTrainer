@@ -40,6 +40,11 @@ struct IIVIProgression {
     let chordType: (name: String, intervals: [Int])
 }
 
+struct ButtonStylePalette {
+    let background: Color
+    let foreground: Color
+}
+
 struct ContentView: View {
     
     enum QuizMode: String, CaseIterable {
@@ -340,15 +345,18 @@ struct ContentView: View {
                                 }
                                 
                             } label: {
+                                let style = palette(for: type.name)
                                 
                                 Text(currentRoot + type.name)
                                     .font(.title2)
+                                    .frame(maxWidth: .infinity)
                                     .padding()
-                                    .background(buttonColor(for: type.name))
-                                    .foregroundColor(textColor(for: type.name))
+                                    .background(style.background)
+                                    .foregroundColor(style.foreground)
                                     .cornerRadius(8)
+                                    .opacity(isInputDisabled ? 0.8 : 1.0)
                             }
-                            
+                            .disabled(isInputDisabled)
                         }
                     }
                 } else {
@@ -360,14 +368,16 @@ struct ContentView: View {
                                 toggleSelection(note)
                                 
                             }) {
+                                let style = palette(for: note)
+                                
                                 Text(note)
                                     .font(.title2)
                                     .frame(maxWidth: .infinity)
                                     .padding()
-                                    .background(buttonColor(for: note))
-                                    .foregroundColor(textColor(for: note))
+                                    .background(style.background)
+                                    .foregroundColor(style.foreground)
                                     .cornerRadius(8)
-                                    .opacity(isInputDisabled ? 0.5 : 1.0)
+                                    .opacity(isInputDisabled ? 0.8 : 1.0)
                             }
                             .disabled(isInputDisabled)
                         }
@@ -639,102 +649,58 @@ struct ContentView: View {
     }
     
     
-    //回答UIのボタン色（選択/非選択、正解/不正解）決定
-    func buttonColor(for value: String) -> Color {
+    func palette(for value: String) -> ButtonStylePalette {
+        let isSelected: Bool
+        let isCorrect: Bool
         
         if mode == .tonesToChord {
-            let isSelected = (selectedChord == value)
-        
-            if !answerChecked {
-                return isSelected ? .blue : .gray.opacity(0.2)
-            }
-            
-            let isCorrect = (value == currentChordType)
-            
-            if isSelected && isCorrect {
-                return .green                  //選択していて正解
-            }
-            
-            if isSelected && !isCorrect {
-                return .red                    //選択していて不正解
-            }
-
-            if !isSelected && isCorrect {
-                return .green.opacity(0.3)     //選択していなかった正解
-            }
-                
-            return Color.gray.opacity(0.2)     //それ以外
+            isSelected = (selectedChord == value)
+            isCorrect = (value == currentChordType)
+        } else {
+            isSelected = selectedNotes.contains(value)
+            // 異名同音(D♯とE♭など)への対応
+            let correctSemitones = correctNotes.compactMap { noteToSemitone[$0] }
+            let noteSemitone = semitone(for: value)
+            isCorrect = noteSemitone.map { correctSemitones.contains($0) } ?? false
         }
         
-        
-        let isSelected = selectedNotes.contains(value)
-        
-        //Check前
         if !answerChecked {
-            
-            if isSelected {
-                return .blue
-            }
-            
-            return Color.gray.opacity(0.2)
-        }
-
-        //Check後
-        //異名同音(D♯とE♭など)への対応
-        let correctSemitones = correctNotes.compactMap { noteToSemitone[$0] }
-        let noteSemitone = semitone(for: value)
-
-        //正解かどうか
-        let isCorrect = noteSemitone.map { correctSemitones.contains($0) } ?? false
-
-            
-        if isSelected && isCorrect {
-            return .green
+            return isSelected
+                ? ButtonStylePalette(
+                    background: .blue, foreground: .white)
+                : ButtonStylePalette(
+                    background: .gray.opacity(0.2),foreground: .blue)
         }
         
+        if isSelected && isCorrect {
+            return ButtonStylePalette(
+                background: .green,
+                foreground: .white
+            )
+        }
+
         if isSelected && !isCorrect {
-            return .red
+            return ButtonStylePalette(
+                background: .red,
+                foreground: .white
+            )
         }
 
         if !isSelected && isCorrect {
-            return .green.opacity(0.3)
+            return ButtonStylePalette(
+                background: .green.opacity(0.5),
+                foreground: .gray
+            )
         }
-            
-        return Color.gray.opacity(0.2)
-
+        
+        return ButtonStylePalette(
+            background: .gray.opacity(0.2),
+            foreground: .blue
+        )
+        
     }
     
     
-    //回答UIボタンの文字色
-    func textColor(for value: String) -> Color {
-        if mode == .tonesToChord {
-            let isSelected = (selectedChord == value)
-
-            if !answerChecked {
-                return isSelected ? .white : .blue
-            }
-            
-            if isSelected {
-                return .white
-            }
-            
-            return .blue
-        }
-        
-        let isSelected = selectedNotes.contains(value)
-
-        if !answerChecked {
-            return isSelected ? .white : .blue
-        }
-        
-        if isSelected {
-            return .white
-        }
-        
-        return .blue
-    }
-    
-
     //音から役割を取り出す
     func role(for note: String) -> ToneRole? {
         return fullTones.first { $0.note == note }?.role
