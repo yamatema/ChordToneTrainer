@@ -105,6 +105,8 @@ struct ContentView: View {
     @State private var currentRoot: String = ""
     @State private var currentChordType: String = ""
     @State private var currentChordOptions: [(name: String, intervals: [Int])] = []
+    @State private var promptTones: [String] = [] //問題文表示用
+    @State private var showRootInPrompt = true //問題文ルート表示ON/OFF
     //正解判定をしたかどうか
     @State private var answerChecked = false
     //guideTonesモード 回答ステップ
@@ -185,6 +187,20 @@ struct ContentView: View {
             return []
         }
     }
+    
+    
+    var visiblePromptTones: [String] {
+        if mode != .tonesToChord {
+            return []
+        }
+
+        if showRootInPrompt {
+            return promptTones
+        } else {
+            return promptTones.filter { $0 != currentRoot }
+        }
+    }
+    
     
     var isInputDisabled: Bool {
         answerChecked || showingAnswer || isProcessing
@@ -267,7 +283,7 @@ struct ContentView: View {
 
                         } else {
                             if mode == .tonesToChord {
-                                Text(chordTones.joined(separator: " ") + " → ?")
+                                Text(visiblePromptTones.joined(separator: ", ") + " → ?")
                                     .font(.largeTitle)
                             } else {
                                 Text(currentChord)
@@ -431,12 +447,16 @@ struct ContentView: View {
                     .opacity(isCheckDisabled ? 0.5 : 1.0)
                 }
                 
+                //各種切り替えトグル
                 HStack {
                     Spacer()
                     
                     Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                         .disabled(!isShuffleAvailable)
                         .opacity(isShuffleAvailable ? 1.0 : 0.3)
+                    Toggle("Show Root in Prompt", isOn: $showRootInPrompt)
+                        .opacity(mode == .tonesToChord ? 1.0 : 0.3)
+                        .disabled(mode != .tonesToChord)
 
                 }
                 .padding(.horizontal, 40)
@@ -548,6 +568,10 @@ struct ContentView: View {
             fullTones.append((note: theoretical, role: roles[i]))
         }
         
+        //リセット
+        promptTones = []
+        
+        
         switch mode {
             
         case .chordToTones:
@@ -567,7 +591,8 @@ struct ContentView: View {
             
         case .tonesToChord:
             currentChord = actualRoot + actualChordType.name
-            chordTones = fullTones.map { $0.note }
+            chordTones = fullTones.map { $0.note }  //正答表示用
+            promptTones = chordTones.shuffled() //問題文
             
             //誤答(distractor)生成
             let correctType = actualChordType
