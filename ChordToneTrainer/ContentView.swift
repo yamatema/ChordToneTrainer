@@ -119,6 +119,15 @@ struct ContentView: View {
     @State private var wrongDelay: Double = 2.0
     @State private var isProcessing = false
     
+    //tonesToChordモード ヒント・正答表示制御
+    enum RevealStep {
+        case none
+        case hint
+        case answer
+    }
+
+    @State private var revealStep: RevealStep = .none
+    
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
@@ -214,6 +223,25 @@ struct ContentView: View {
         showingAnswer || answerChecked
     }
     
+    var isRootToggleDisabled: Bool {
+        mode != .tonesToChord || revealStep != .none || isProcessing || showingAnswer
+    }
+    
+    var showButtonLabel: String {
+        if mode == .tonesToChord && !showRootInPrompt {
+            switch revealStep {
+            case .none:
+                return "Hint"
+            case .hint:
+                return "Show"
+            case .answer:
+                return "Next"
+            }
+        }
+
+        return showingAnswer ? "Next" : "Show"
+    }
+    
     //画面描画
     var body: some View {
         
@@ -285,6 +313,11 @@ struct ContentView: View {
                             if mode == .tonesToChord {
                                 Text(visiblePromptTones.joined(separator: ", ") + " → ?")
                                     .font(.largeTitle)
+                                if revealStep == .hint {
+                                    Text("Hint... Root = \(currentRoot)")
+                                        .font(.title3)
+                                        .foregroundColor(.secondary)
+                                }
                             } else {
                                 Text(currentChord)
                                     .font(.largeTitle)
@@ -401,18 +434,26 @@ struct ContentView: View {
                     
                     // CONTROLS
                     Button(action: {
-                        if showingAnswer {
-                            
-                            if mode == .tonesToChord {
+                        if mode == .tonesToChord && !showRootInPrompt {
+                            switch revealStep {
+                            case .none:
+                                revealStep = .hint
+                            case .hint:
+                                revealStep = .answer
+                                showingAnswer = true
+                            case .answer:
                                 selectedChord = nil
+                                generateChord()
                             }
-                            
-                            generateChord()
                         } else {
-                            showingAnswer = true
+                            if showingAnswer {
+                                generateChord()
+                            } else {
+                                showingAnswer = true
+                            }
                         }
                     }) {
-                        Text(showingAnswer ? "Next" : "Show")
+                        Text(showButtonLabel)
                             .font(.title2)
                             .padding()
                             .frame(maxWidth: 100)
@@ -455,8 +496,8 @@ struct ContentView: View {
                         .disabled(!isShuffleAvailable)
                         .opacity(isShuffleAvailable ? 1.0 : 0.3)
                     Toggle("Show Root in Prompt", isOn: $showRootInPrompt)
-                        .opacity(mode == .tonesToChord ? 1.0 : 0.3)
-                        .disabled(mode != .tonesToChord)
+                        .disabled(isRootToggleDisabled)
+                        .opacity(!isRootToggleDisabled ? 1.0 : 0.3)
 
                 }
                 .padding(.horizontal, 40)
@@ -612,6 +653,7 @@ struct ContentView: View {
             answerOrder.shuffle()
         }
         
+        revealStep = .none
         showingAnswer = false
         
         //Checkの後、Nextを押す際に回答をリセット
