@@ -67,6 +67,14 @@ struct ContentView: View {
         ("dim7", [3,6,9])
     ]
     
+    let distractorMap: [String: [String]] = [
+        "M7": ["7", "m7", "ø"],
+        "7": ["M7", "m7", "ø"],
+        "m7": ["7", "M7", "ø"],
+        "ø": ["dim7", "m7", "7"],
+        "dim7": ["ø", "m7", "7"]
+    ]
+    
     //回答時に異名同音を同じものとして扱うため
     let noteToSemitone: [String:Int] = [
     "C":0, "B♯":0, "D♭♭":0,
@@ -313,6 +321,7 @@ struct ContentView: View {
                             if mode == .tonesToChord {
                                 Text(visiblePromptTones.joined(separator: ", ") + " → ?")
                                     .font(.largeTitle)
+                                
                                 if revealStep == .hint {
                                     Text("Hint... Root = \(currentRoot)")
                                         .font(.title3)
@@ -637,8 +646,9 @@ struct ContentView: View {
             
             //誤答(distractor)生成
             let correctType = actualChordType
-            var wrongChoices = chordTypes.filter { $0.name != correctType.name }
-            wrongChoices.shuffle()
+            let wrongNames = distractorMap[correctType.name] ?? []
+            var wrongChoices = chordTypes.filter { wrongNames.contains($0.name) }
+            //wrongChoices.shuffle()
             let selectedWrong = Array(wrongChoices.prefix(3))
             //回答UIシャッフル
             currentChordOptions = ([correctType] + selectedWrong).shuffled()
@@ -663,7 +673,7 @@ struct ContentView: View {
         currentRoot = actualRoot
         currentChordType = actualChordType.name
         
-        
+        //print(currentChord)
     }
     
     
