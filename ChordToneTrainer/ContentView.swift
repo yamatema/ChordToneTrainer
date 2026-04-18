@@ -644,14 +644,31 @@ struct ContentView: View {
             chordTones = fullTones.map { $0.note }  //正答表示用
             promptTones = chordTones.shuffled() //問題文
             
-            //誤答(distractor)生成
             let correctType = actualChordType
-            let wrongNames = distractorMap[correctType.name] ?? []
-            var wrongChoices = chordTypes.filter { wrongNames.contains($0.name) }
-            //wrongChoices.shuffle()
-            let selectedWrong = Array(wrongChoices.prefix(3))
-            //回答UIシャッフル
+            
+            let preferredNames = distractorMap[correctType.name] ?? []
+            // 優先候補
+            var preferredChoices = chordTypes.filter {
+                preferredNames.contains($0.name)
+            }
+
+            // 足りない分を補う
+            let remainingChoices = chordTypes.filter {
+                $0.name != correctType.name && !preferredNames.contains($0.name)
+            }
+
+            // 最大3つに制限
+            preferredChoices.shuffle()
+            var selectedWrong = Array(preferredChoices.prefix(3))
+
+            if selectedWrong.count < 3 {
+                let needed = 3 - selectedWrong.count
+                let supplement = Array(remainingChoices.shuffled().prefix(needed))
+                selectedWrong += supplement
+            }
+
             currentChordOptions = ([correctType] + selectedWrong).shuffled()
+            
             
         case .iiVIMode:
             chordTones = fullTones.map { $0.note }
