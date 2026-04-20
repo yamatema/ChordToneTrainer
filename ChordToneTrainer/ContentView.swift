@@ -115,6 +115,7 @@ struct ContentView: View {
     @State private var currentChordOptions: [(name: String, intervals: [Int])] = []
     @State private var promptTones: [String] = [] //問題文表示用
     @State private var showRootInPrompt = true //問題文ルート表示ON/OFF
+    @State private var showFifthInPrompt = true //問題文5th表示ON/OFF
     //正解判定をしたかどうか
     @State private var answerChecked = false
     //guideTonesモード 回答ステップ
@@ -211,10 +212,15 @@ struct ContentView: View {
             return []
         }
 
-        if showRootInPrompt {
-            return promptTones
-        } else {
-            return promptTones.filter { $0 != currentRoot }
+        return promptTones.filter { tone in
+            if !showRootInPrompt, role(for: tone) == .root {
+                return false
+            }
+            if !showFifthInPrompt, role(for: tone) == .fifth {
+                return false
+            }
+            
+            return true
         }
     }
     
@@ -231,9 +237,10 @@ struct ContentView: View {
         showingAnswer || answerChecked
     }
     
-    var isRootToggleDisabled: Bool {
-        mode != .tonesToChord || revealStep != .none || isProcessing || showingAnswer
+    var isPromptOptionDisabled: Bool {
+        mode != .tonesToChord || isProcessing || revealStep != .none || showingAnswer
     }
+        
     
     var showButtonLabel: String {
         if mode == .tonesToChord && !showRootInPrompt {
@@ -498,15 +505,18 @@ struct ContentView: View {
                 }
                 
                 //各種切り替えトグル
-                HStack {
+                VStack {
                     Spacer()
                     
                     Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                         .disabled(!isShuffleAvailable)
                         .opacity(isShuffleAvailable ? 1.0 : 0.3)
                     Toggle("Show Root in Prompt", isOn: $showRootInPrompt)
-                        .disabled(isRootToggleDisabled)
-                        .opacity(!isRootToggleDisabled ? 1.0 : 0.3)
+                        .disabled(isPromptOptionDisabled)
+                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+                    Toggle("Show 5th in Prompt", isOn: $showFifthInPrompt)
+                        .disabled(isPromptOptionDisabled)
+                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
 
                 }
                 .padding(.horizontal, 40)
@@ -558,8 +568,19 @@ struct ContentView: View {
         
         let degreeSteps = [2,4,6]  // 3rd,5th,7th
         
+        //本番用
         let rootIndex = Int.random(in: 0..<notes.count)
-        let chordType = chordTypes.randomElement()!
+        //テスト用（ルートC固定）
+        //let rootIndex = 0
+        
+        //出題条件
+        let availableChordTypes: [(name: String, intervals: [Int])]
+        if mode == .tonesToChord && !showFifthInPrompt {
+            availableChordTypes = chordTypes.filter { $0.name != "ø" }  //5th非表示時に ø を回答選択肢候補から外す
+        } else {
+            availableChordTypes = chordTypes
+        }
+        let chordType = availableChordTypes.randomElement()!
         
         let root = notes[rootIndex]
         var actualRoot = root
@@ -648,12 +669,12 @@ struct ContentView: View {
             
             let preferredNames = distractorMap[correctType.name] ?? []
             // 優先候補
-            var preferredChoices = chordTypes.filter {
+            var preferredChoices = availableChordTypes.filter {
                 preferredNames.contains($0.name)
             }
 
             // 足りない分を補う
-            let remainingChoices = chordTypes.filter {
+            let remainingChoices = availableChordTypes.filter {
                 $0.name != correctType.name && !preferredNames.contains($0.name)
             }
 
