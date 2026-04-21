@@ -186,6 +186,15 @@ struct ContentView: View {
         }
     }
     
+    //出題条件
+    var availableChordTypes: [(name: String, intervals: [Int])] {
+        if mode == .tonesToChord && !showFifthInPrompt {
+            return chordTypes.filter { $0.name != "ø" }
+        }
+
+        return chordTypes
+    }
+    
     //答えさせる(target)音
     var targetRoles: [ToneRole] {
         switch mode {
@@ -569,17 +578,10 @@ struct ContentView: View {
         let degreeSteps = [2,4,6]  // 3rd,5th,7th
         
         //本番用
-        let rootIndex = Int.random(in: 0..<notes.count)
+        //let rootIndex = Int.random(in: 0..<notes.count)
         //テスト用（ルートC固定）
-        //let rootIndex = 0
+        let rootIndex = 0
         
-        //出題条件
-        let availableChordTypes: [(name: String, intervals: [Int])]
-        if mode == .tonesToChord && !showFifthInPrompt {
-            availableChordTypes = chordTypes.filter { $0.name != "ø" }  //5th非表示時に ø を回答選択肢候補から外す
-        } else {
-            availableChordTypes = chordTypes
-        }
         let chordType = availableChordTypes.randomElement()!
         
         let root = notes[rootIndex]
