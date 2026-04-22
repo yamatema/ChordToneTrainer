@@ -32,12 +32,24 @@ extension ToneRole {
     }
 }
 
+
+
+struct ChordType: Equatable, Hashable {
+    let name: String
+    let intervals: [Int]
+}
+
+struct Chord: Equatable, Hashable {
+    let root: String
+    let type: ChordType
+}
+
 struct IIVIProgression {
     let ii: String
     let v: String
     let i: String
     let root: String
-    let chordType: (name: String, intervals: [Int])
+    let chordType: ChordType
 }
 
 struct ButtonStylePalette {
@@ -59,12 +71,12 @@ struct ContentView: View {
     //回答UI 異名同音表記対応用
     let noteButtons = ["C","C♯/D♭","D","D♯/E♭","E","F","F♯/G♭","G","G♯/A♭","A","A♯/B♭","B"]
     
-    let chordTypes: [(name: String, intervals: [Int])] = [
-        ("M7", [4,7,11]),
-        ("7", [4,7,10]),
-        ("m7", [3,7,10]),
-        ("ø", [3,6,10]),
-        ("dim7", [3,6,9])
+    let chordTypes: [ChordType] = [
+        ChordType(name: "M7", intervals: [4,7,11]),
+        ChordType(name: "7", intervals: [4,7,10]),
+        ChordType(name: "m7", intervals: [3,7,10]),
+        ChordType(name: "ø", intervals: [3,6,10]),
+        ChordType(name: "dim7", intervals: [3,6,9])
     ]
     
     let distractorMap: [String: [String]] = [
@@ -102,8 +114,9 @@ struct ContentView: View {
     @State private var currentChord: String = "ChordTones"
     //コード進行（表示用。ii-V-Iモード限定）
     @State private var currentProgression: IIVIProgression? = nil
-    //コードトーン（正解の中身）
+    //正解の中身(tones, chord)
     @State private var fullTones: [(note: String, role: ToneRole)] = []
+    @State private var currentQuizChord: Chord? = nil
     //回答順シャッフル（デフォルトはオフ）
     @State private var shuffleEnabled = false
     //プレイヤーの回答
@@ -112,7 +125,7 @@ struct ContentView: View {
     //tonesToChordモード用
     @State private var currentRoot: String = ""
     @State private var currentChordType: String = ""
-    @State private var currentChordOptions: [(name: String, intervals: [Int])] = []
+    @State private var currentChordOptions: [Chord] = []
     @State private var promptTones: [String] = [] //問題文表示用
     @State private var showRootInPrompt = true //問題文ルート表示ON/OFF
     @State private var showFifthInPrompt = true //問題文5th表示ON/OFF
@@ -187,7 +200,7 @@ struct ContentView: View {
     }
     
     //出題条件
-    var availableChordTypes: [(name: String, intervals: [Int])] {
+    var availableChordTypes: [ChordType] {
         if mode == .tonesToChord && !showFifthInPrompt {
             return chordTypes.filter { $0.name != "ø" }
         }
@@ -404,18 +417,20 @@ struct ContentView: View {
                 //コード選択UI
                 if mode == .tonesToChord {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                        ForEach(currentChordOptions, id: \.name) { type in
+                        ForEach(currentChordOptions, id: \.self) { chord in
+                            let chordLabel = chordName(for: chord)
+                            
                             Button {
-                                if selectedChord == type.name {
+                                if selectedChord == chordLabel {
                                     selectedChord = nil
                                 } else {
-                                    selectedChord = type.name
+                                    selectedChord = chordLabel
                                 }
                                 
                             } label: {
-                                let style = palette(for: type.name)
+                                let style = palette(for: chordLabel)
                                 
-                                Text(currentRoot + type.name)
+                                Text(chordLabel)
                                     .font(.title2)
                                     .frame(maxWidth: .infinity)
                                     .padding()
@@ -578,15 +593,22 @@ struct ContentView: View {
         let degreeSteps = [2,4,6]  // 3rd,5th,7th
         
         //本番用
-        //let rootIndex = Int.random(in: 0..<notes.count)
+        let rootIndex = Int.random(in: 0..<notes.count)
         //テスト用（ルートC固定）
-        let rootIndex = 0
+        //let rootIndex = 0
         
         let chordType = availableChordTypes.randomElement()!
         
         let root = notes[rootIndex]
         var actualRoot = root
         var actualChordType = chordType
+        let actualChord = Chord(root: actualRoot, type: actualChordType)
+        currentQuizChord = actualChord
+        
+        if let sub = tritoneSubstitute(of: actualChord) {
+            print("original:", actualChord)
+            print("substitute:", sub)
+        }
         
         if mode == .iiVIMode {
             let result = generateIIVI()
@@ -667,9 +689,10 @@ struct ContentView: View {
             chordTones = fullTones.map { $0.note }  //正答表示用
             promptTones = chordTones.shuffled() //問題文
             
-            let correctType = actualChordType
+            //let correctType = actualChordType
+            let correctChord = actualChord
             
-            let preferredNames = distractorMap[correctType.name] ?? []
+            let preferredNames = distractorMap[correctChord.type.name] ?? []
             // 優先候補
             var preferredChoices = availableChordTypes.filter {
                 preferredNames.contains($0.name)
@@ -677,20 +700,37 @@ struct ContentView: View {
 
             // 足りない分を補う
             let remainingChoices = availableChordTypes.filter {
-                $0.name != correctType.name && !preferredNames.contains($0.name)
+                $0.name != correctChord.type.name && !preferredNames.contains($0.name)
             }
 
             // 最大3つに制限
             preferredChoices.shuffle()
-            var selectedWrong = Array(preferredChoices.prefix(3))
+            var selectedWrongTypes = Array(preferredChoices.prefix(3))
 
-            if selectedWrong.count < 3 {
-                let needed = 3 - selectedWrong.count
+            if selectedWrongTypes.count < 3 {
+                let needed = 3 - selectedWrongTypes.count
                 let supplement = Array(remainingChoices.shuffled().prefix(needed))
-                selectedWrong += supplement
+                selectedWrongTypes += supplement
             }
-
-            currentChordOptions = ([correctType] + selectedWrong).shuffled()
+            
+            //同じrootの誤答コードを作る
+            var wrongChords = selectedWrongTypes.map {
+                Chord(root: correctChord.root, type: $0)
+            }
+            
+            //条件に合致するなら誤答にトライトーン代理を混ぜる
+            if !showRootInPrompt && !showFifthInPrompt,
+               let sub = tritoneSubstitute(of: correctChord) {
+                if !wrongChords.contains(sub) {
+                    if !wrongChords.isEmpty {
+                        wrongChords[0] = sub
+                    } else {
+                        wrongChords.append(sub)
+                    }
+                }
+            }
+            
+            currentChordOptions = ([correctChord] + wrongChords).shuffled()
             
             
         case .iiVIMode:
@@ -717,6 +757,18 @@ struct ContentView: View {
     }
     
     
+    func tritoneSubstitute(of chord: Chord) -> Chord? {
+        guard chord.type.name == "7" else { return nil }
+
+        guard let rootSemitone = noteToSemitone[chord.root] else { return nil }
+
+        let subRootSemitone = (rootSemitone + 6) % 12
+        let subRoot = notes[subRootSemitone]
+
+        return Chord(root: subRoot, type: chord.type)
+    }
+    
+    
     func generateIIVI() -> IIVIProgression {
         
         let rootIndex = Int.random(in: 0..<notes.count)
@@ -739,6 +791,10 @@ struct ContentView: View {
         )
     }
     
+    
+    func chordName(for chord: Chord) -> String {
+        chord.root + chord.type.name
+    }
     
     //半音変換関数
     func semitone(for note: String) -> Int? {
@@ -773,9 +829,15 @@ struct ContentView: View {
         let isCorrect: Bool
         
         if mode == .tonesToChord {
+            guard let currentQuizChord else {
+                return ButtonStylePalette(background: .gray.opacity(0.2), foreground: .blue)
+            }
+            
             isSelected = (selectedChord == value)
-            isCorrect = (value == currentChordType)
+            isCorrect = (value == chordName(for: currentQuizChord))
+            
         } else {
+            
             isSelected = selectedNotes.contains(value)
             // 異名同音(D♯とE♭など)への対応
             let correctSemitones = correctNotes.compactMap { noteToSemitone[$0] }
@@ -870,7 +932,8 @@ struct ContentView: View {
     //正誤判定
     func checkAnswer() -> Bool {
         if mode == .tonesToChord {
-            return selectedChord == currentChordType
+            guard let currentQuizChord else { return false }
+            return selectedChord == chordName(for: currentQuizChord)
         }
         
         let selectedSemitones =
