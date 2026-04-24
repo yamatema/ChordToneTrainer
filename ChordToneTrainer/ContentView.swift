@@ -603,12 +603,16 @@ struct ContentView: View {
         var actualRoot = root
         var actualChordType = chordType
         let actualChord = Chord(root: actualRoot, type: actualChordType)
-        currentQuizChord = actualChord
         
-        if let sub = tritoneSubstitute(of: actualChord) {
-            print("original:", actualChord)
-            print("substitute:", sub)
+        let correctChord: Chord
+        if mode == .tonesToChord, !showRootInPrompt, !showFifthInPrompt,
+           let sub = tritoneSubstitute(of: actualChord) {
+            correctChord = Bool.random() ? actualChord : sub
+        } else {
+            correctChord = actualChord
         }
+        currentQuizChord = correctChord
+        
         
         if mode == .iiVIMode {
             let result = generateIIVI()
@@ -689,9 +693,6 @@ struct ContentView: View {
             chordTones = fullTones.map { $0.note }  //正答表示用
             promptTones = chordTones.shuffled() //問題文
             
-            //let correctType = actualChordType
-            let correctChord = actualChord
-            
             let preferredNames = distractorMap[correctChord.type.name] ?? []
             // 優先候補
             var preferredChoices = availableChordTypes.filter {
@@ -713,11 +714,22 @@ struct ContentView: View {
                 selectedWrongTypes += supplement
             }
             
-            //同じrootの誤答コードを作る
-            var wrongChords = selectedWrongTypes.map {
-                Chord(root: correctChord.root, type: $0)
+            
+            let distractorRoot: String
+            if correctChord.root != actualChord.root {
+                distractorRoot = actualChord.root
+                //print("sub!")
+            } else {
+                distractorRoot = correctChord.root
+                
             }
             
+            //誤答コードを作る
+            var wrongChords = selectedWrongTypes.map {
+                Chord(root: distractorRoot, type: $0)
+            }
+            
+            /*
             //条件に合致するなら誤答にトライトーン代理を混ぜる
             if !showRootInPrompt && !showFifthInPrompt,
                let sub = tritoneSubstitute(of: correctChord) {
@@ -729,6 +741,7 @@ struct ContentView: View {
                     }
                 }
             }
+             */
             
             currentChordOptions = ([correctChord] + wrongChords).shuffled()
             
@@ -759,6 +772,7 @@ struct ContentView: View {
     
     func tritoneSubstitute(of chord: Chord) -> Chord? {
         guard chord.type.name == "7" else { return nil }
+        //print("7th!")
 
         guard let rootSemitone = noteToSemitone[chord.root] else { return nil }
 
