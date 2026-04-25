@@ -127,8 +127,9 @@ struct ContentView: View {
     @State private var currentChordType: String = ""
     @State private var currentChordOptions: [Chord] = []
     @State private var promptTones: [String] = [] //問題文表示用
-    @State private var showRootInPrompt = true //問題文ルート表示ON/OFF
-    @State private var showFifthInPrompt = true //問題文5th表示ON/OFF
+    @State private var showRootInPrompt = false //問題文ルート表示ON/OFF
+    @State private var showFifthInPrompt = false //問題文5th表示ON/OFF
+    @State private var showPromptControls = true //問題文関係トグル表示ON/OFF
     @State private var currentActualChord: Chord? = nil
     //正解判定をしたかどうか
     @State private var answerChecked = false
@@ -143,7 +144,7 @@ struct ContentView: View {
     @State private var isProcessing = false
     
     //テストプレイ用
-    @State private var showTestControls = false
+    @State private var showTestControls = true
     @State private var forceRootCForTest = false
     @State private var forceDominant7ForTest = false
     
@@ -282,6 +283,23 @@ struct ContentView: View {
             && currentQuizChord.type.name == "7"
     }
     
+    var tritoneSubLabel: String? {
+        guard shouldShowTritoneSubFeedback,
+              let actual = currentActualChord,
+              let quiz = currentQuizChord else { return nil }
+
+        let a = chordName(for: actual)
+        let q = chordName(for: quiz)
+
+        return "Tritone Substitution (\(a) ↔︎ \(q))"
+        //左右を固定したい時はこっち
+        /*
+        return a < q
+            ? "Tritone Sub (\(a) ↔ \(q))"
+            : "Tritone Sub (\(q) ↔︎ \(a))"
+         */
+    }
+    
     var showButtonLabel: String {
         if mode == .tonesToChord && !showRootInPrompt {
             switch revealStep {
@@ -382,6 +400,15 @@ struct ContentView: View {
 
                         }
                         
+                        //トライトーン代理の補助テキスト
+                        if shouldShowTritoneSubFeedback {
+                            if let label = tritoneSubLabel {
+                                Text(label)
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
                         //どれを答えるかの表示
                         if answerStep < answerOrder.count {
                             Text("\(roleLabel(answerOrder[answerStep])) ?")
@@ -428,11 +455,7 @@ struct ContentView: View {
                         }.padding()
                         
                         
-                        if shouldShowTritoneSubFeedback {
-                            Text("Tritone Sub.")
-                                .font(.title3)
-                                .foregroundColor(.secondary)
-                        }
+                        
                     }
                 }
                 
@@ -560,13 +583,18 @@ struct ContentView: View {
                     Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                         .disabled(!isShuffleAvailable)
                         .opacity(isShuffleAvailable ? 1.0 : 0.3)
-                    Toggle("Show Root in Prompt", isOn: $showRootInPrompt)
-                        .disabled(isPromptOptionDisabled)
-                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                    Toggle("Show 5th in Prompt", isOn: $showFifthInPrompt)
-                        .disabled(isPromptOptionDisabled)
-                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                    Toggle("Show Test Controls", isOn: Binding(
+                    Toggle("Prompt Controls", isOn: $showPromptControls)
+                    if showPromptControls {
+                        VStack(alignment: .leading) {
+                            Toggle("↳ Show Root in Prompt", isOn: $showRootInPrompt)
+                                .disabled(isPromptOptionDisabled)
+                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+                            Toggle("↳ Show 5th in Prompt", isOn: $showFifthInPrompt)
+                                .disabled(isPromptOptionDisabled)
+                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+                        }.padding(.leading, 24)
+                    }
+                    Toggle("Test Controls", isOn: Binding(
                         get: { showTestControls },
                         set: { newValue in
                             showTestControls = newValue
@@ -577,10 +605,12 @@ struct ContentView: View {
                             }
                         }
                     ))
-                    
                     if showTestControls {
-                        Toggle("Force Root C", isOn: $forceRootCForTest)
-                        Toggle("Force 7 Chord", isOn: $forceDominant7ForTest)
+                        VStack(alignment: .leading) {
+                            Toggle("↳ Force Root C", isOn: $forceRootCForTest)
+                            Toggle("↳ Force 7 Chord", isOn: $forceDominant7ForTest)
+                        }
+                        .padding(.leading, 24)
                     }
                 }
                 .padding(.horizontal, 40)
