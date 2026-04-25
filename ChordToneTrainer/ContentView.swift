@@ -142,6 +142,12 @@ struct ContentView: View {
     @State private var wrongDelay: Double = 2.0
     @State private var isProcessing = false
     
+    //テストプレイ用
+    @State private var showTestControls = false
+    @State private var forceRootCForTest = false
+    @State private var forceDominant7ForTest = false
+    
+    
     //tonesToChordモード ヒント・正答表示制御
     enum RevealStep {
         case none
@@ -560,7 +566,22 @@ struct ContentView: View {
                     Toggle("Show 5th in Prompt", isOn: $showFifthInPrompt)
                         .disabled(isPromptOptionDisabled)
                         .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-
+                    Toggle("Show Test Controls", isOn: Binding(
+                        get: { showTestControls },
+                        set: { newValue in
+                            showTestControls = newValue
+                            
+                            if newValue {
+                                forceRootCForTest = false
+                                forceDominant7ForTest = false
+                            }
+                        }
+                    ))
+                    
+                    if showTestControls {
+                        Toggle("Force Root C", isOn: $forceRootCForTest)
+                        Toggle("Force 7 Chord", isOn: $forceDominant7ForTest)
+                    }
                 }
                 .padding(.horizontal, 40)
                 
@@ -611,12 +632,12 @@ struct ContentView: View {
         
         let degreeSteps = [2,4,6]  // 3rd,5th,7th
         
-        //本番用
-        let rootIndex = Int.random(in: 0..<notes.count)
-        //テスト用（ルートC固定）
-        //let rootIndex = 0
-        
-        let chordType = availableChordTypes.randomElement()!
+        let rootIndex = forceRootCForTest
+            ? 0
+            : Int.random(in: 0..<notes.count)
+        let chordType = forceDominant7ForTest
+            ? chordTypes.first { $0.name == "7"}!
+            : availableChordTypes.randomElement()!
         
         let root = notes[rootIndex]
         var actualRoot = root
@@ -860,6 +881,7 @@ struct ContentView: View {
     func palette(for value: String) -> ButtonStylePalette {
         let isSelected: Bool
         let isCorrect: Bool
+        let shouldReveal = answerChecked || showingAnswer
         
         if mode == .tonesToChord {
             guard let currentQuizChord else {
@@ -878,7 +900,7 @@ struct ContentView: View {
             isCorrect = noteSemitone.map { correctSemitones.contains($0) } ?? false
         }
         
-        if !answerChecked {
+        if !shouldReveal {
             return isSelected
                 ? ButtonStylePalette(
                     background: .blue, foreground: .white)
