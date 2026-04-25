@@ -129,6 +129,7 @@ struct ContentView: View {
     @State private var promptTones: [String] = [] //問題文表示用
     @State private var showRootInPrompt = true //問題文ルート表示ON/OFF
     @State private var showFifthInPrompt = true //問題文5th表示ON/OFF
+    @State private var currentActualChord: Chord? = nil
     //正解判定をしたかどうか
     @State private var answerChecked = false
     //guideTonesモード 回答ステップ
@@ -262,7 +263,18 @@ struct ContentView: View {
     var isPromptOptionDisabled: Bool {
         mode != .tonesToChord || isProcessing || revealStep != .none || showingAnswer
     }
-        
+    
+    var shouldShowTritoneSubFeedback: Bool {
+        guard let currentActualChord,
+              let currentQuizChord else { return false }
+
+        return mode == .tonesToChord
+            && !showRootInPrompt
+            && !showFifthInPrompt
+            && (showingAnswer || answerChecked || revealStep != .none)
+            && currentActualChord.root != currentQuizChord.root
+            && currentQuizChord.type.name == "7"
+    }
     
     var showButtonLabel: String {
         if mode == .tonesToChord && !showRootInPrompt {
@@ -408,6 +420,13 @@ struct ContentView: View {
                                     .opacity(showingAnswer ? 1 : 0)
                             }
                         }.padding()
+                        
+                        
+                        if shouldShowTritoneSubFeedback {
+                            Text("Tritone Sub.")
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
@@ -612,7 +631,7 @@ struct ContentView: View {
             correctChord = actualChord
         }
         currentQuizChord = correctChord
-        
+        currentActualChord = actualChord
         
         if mode == .iiVIMode {
             let result = generateIIVI()
@@ -725,7 +744,7 @@ struct ContentView: View {
             }
             
             //誤答コードを作る
-            var wrongChords = selectedWrongTypes.map {
+            let wrongChords = selectedWrongTypes.map {
                 Chord(root: distractorRoot, type: $0)
             }
             
