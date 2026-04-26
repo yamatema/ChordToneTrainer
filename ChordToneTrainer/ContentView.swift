@@ -129,7 +129,7 @@ struct ContentView: View {
     @State private var promptTones: [String] = [] //問題文表示用
     @State private var showRootInPrompt = false //問題文ルート表示ON/OFF
     @State private var showFifthInPrompt = false //問題文5th表示ON/OFF
-    @State private var showPromptControls = true //問題文関係トグル表示ON/OFF
+    //@State private var showPromptControls = false
     @State private var currentActualChord: Chord? = nil
     //正解判定をしたかどうか
     @State private var answerChecked = false
@@ -144,7 +144,7 @@ struct ContentView: View {
     @State private var isProcessing = false
     
     //テストプレイ用
-    @State private var showTestControls = true
+    @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
     @State private var forceDominant7ForTest = false
     
@@ -359,10 +359,10 @@ struct ContentView: View {
                     
                     .padding(.horizontal)
 
-                    Spacer()
+                    //Spacer()
 
                     // MAIN
-                    VStack(spacing: 20) {
+                    VStack{
                         //問題文
                         if mode == .iiVIMode, let p = currentProgression {
                             HStack(spacing: 6) {
@@ -576,6 +576,28 @@ struct ContentView: View {
                     Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                         .disabled(!isShuffleAvailable)
                         .opacity(isShuffleAvailable ? 1.0 : 0.3)
+                    DisclosureGroup("Prompt Controls") {
+                        VStack(alignment: .leading) {
+                            Toggle("↳ Show Root in Prompt", isOn: $showRootInPrompt)
+                                .disabled(isPromptOptionDisabled)
+                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+                            Toggle("↳ Show 5th in Prompt", isOn: $showFifthInPrompt)
+                                .disabled(isPromptOptionDisabled)
+                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+                        }.padding(.leading, 24)
+                    }
+                    DisclosureGroup("Test Controls", isExpanded: $isTestControlsExpanded) {
+                        VStack(alignment: .leading) {
+                            Toggle("↳ Force Root C", isOn: $forceRootCForTest)
+                            Toggle("↳ Force 7 Chord", isOn: $forceDominant7ForTest)
+                        }.padding(.leading, 24)
+                    }.onChange(of: isTestControlsExpanded) { oldValue, newValue in
+                        if !newValue {
+                            forceRootCForTest = false
+                            forceDominant7ForTest = false
+                        }
+                    }
+                    /*
                     Toggle("Prompt Controls", isOn: $showPromptControls)
                     if showPromptControls {
                         VStack(alignment: .leading) {
@@ -605,6 +627,7 @@ struct ContentView: View {
                         }
                         .padding(.leading, 24)
                     }
+                    */
                 }
                 .padding(.horizontal, 40)
                 
