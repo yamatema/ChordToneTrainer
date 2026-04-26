@@ -278,7 +278,7 @@ struct ContentView: View {
         return mode == .tonesToChord
             && !showRootInPrompt
             && !showFifthInPrompt
-            && (showingAnswer || answerChecked || revealStep != .none)
+            && (showingAnswer || answerChecked || revealStep == .answer)
             && currentActualChord.root != currentQuizChord.root
             && currentQuizChord.type.name == "7"
     }
@@ -319,9 +319,7 @@ struct ContentView: View {
     var body: some View {
         
         if !gameStarted {
-            
             VStack(spacing: 30) {
-                
                 Spacer()
                 
                 Text("Chord Tone Trainer")
@@ -345,7 +343,6 @@ struct ContentView: View {
             .background(Color(.systemBackground))
             
         } else {
-            
             VStack {
                 VStack {
                     
@@ -366,7 +363,6 @@ struct ContentView: View {
 
                     // MAIN
                     VStack(spacing: 20) {
-
                         //問題文
                         if mode == .iiVIMode, let p = currentProgression {
                             HStack(spacing: 6) {
@@ -381,7 +377,6 @@ struct ContentView: View {
                                     .cornerRadius(6)
                             }
                             .font(.largeTitle)
-
                         } else {
                             if mode == .tonesToChord {
                                 Text(visiblePromptTones.joined(separator: ", ") + " → ?")
@@ -396,8 +391,6 @@ struct ContentView: View {
                                 Text(currentChord)
                                     .font(.largeTitle)
                             }
-                                
-
                         }
                         
                         //トライトーン代理の補助テキスト
@@ -652,16 +645,6 @@ struct ContentView: View {
     
     //問題を作る
     func generateChord() {
-        
-        let letters = ["C","D","E","F","G","A","B"]
-        
-        let naturalSemitones: [String:Int] = [
-            "C":0, "D":2, "E":4, "F":5,
-            "G":7, "A":9, "B":11
-        ]
-        
-        let degreeSteps = [2,4,6]  // 3rd,5th,7th
-        
         let rootIndex = forceRootCForTest
             ? 0
             : Int.random(in: 0..<notes.count)
@@ -672,70 +655,38 @@ struct ContentView: View {
         let root = notes[rootIndex]
         var actualRoot = root
         var actualChordType = chordType
+        
+        if mode == .iiVIMode {
+            let result = generateIIVI()
+            //上書きしてる
+            currentProgression = result
+            actualRoot = result.root
+            actualChordType = result.chordType
+        } else {
+            currentProgression = nil
+        }
+        
         let actualChord = Chord(root: actualRoot, type: actualChordType)
         
         let correctChord: Chord
-        if mode == .tonesToChord, !showRootInPrompt, !showFifthInPrompt,
+        if mode == .tonesToChord,
+            !showRootInPrompt,
+            !showFifthInPrompt,
            let sub = tritoneSubstitute(of: actualChord) {
             correctChord = Bool.random() ? actualChord : sub
         } else {
             correctChord = actualChord
         }
+        
         currentQuizChord = correctChord
         currentActualChord = actualChord
-        
-        if mode == .iiVIMode {
-            let result = generateIIVI()
-            
-            //上書きしてる
-            currentProgression = result
-            actualRoot = result.root
-            actualChordType = result.chordType
-            
-        } else {
-            currentProgression = nil
-        }
-        
-        let rootLetter = String(actualRoot.prefix(1))
-        let rootLetterIndex = letters.firstIndex(of: rootLetter)!
         
         //リセット
         fullTones = []
         answerOrder = []
         answerStep = 0
         
-        
-        //root追加
-        fullTones.append((note: actualRoot, role: .root))
-        
-        //3rd以降の音と役割表記の追加
-        let roles: [ToneRole] = [.third, .fifth, .seventh]
-    
-        let rootSemitone = noteToSemitone[actualRoot]!
-        
-        for (i, interval) in actualChordType.intervals.enumerated() {
-            
-            let realSemitone = (rootSemitone + interval) % 12
-            
-            let letterIndex = (rootLetterIndex + degreeSteps[i]) % 7
-            let baseLetter = letters[letterIndex]
-            
-            let baseSemitone = naturalSemitones[baseLetter]!
-
-            var diff = realSemitone - baseSemitone
-            if diff > 6 { diff -= 12 }
-            if diff < -6 { diff += 12 }
-            
-            var accidental = ""
-            if diff == -2 { accidental = "♭♭" }
-            else if diff == -1 { accidental = "♭" }
-            else if diff == 1 { accidental = "♯" }
-            else if diff == 2 { accidental = "♯♯" }
-            
-            let theoretical = baseLetter + accidental
-                
-            fullTones.append((note: theoretical, role: roles[i]))
-        }
+        fullTones = buildTones(for: actualChord)
         
         //リセット
         promptTones = []
@@ -760,7 +711,9 @@ struct ContentView: View {
             
         case .tonesToChord:
             currentChord = actualRoot + actualChordType.name
-            chordTones = fullTones.map { $0.note }  //正答表示用
+            //chordTones = fullTones.map { $0.note }
+            chordTones = buildTones(for: correctChord).map { $0.note }
+            //正答表示用
             promptTones = chordTones.shuffled() //問題文
             
             let preferredNames = distractorMap[correctChord.type.name] ?? []
@@ -839,7 +792,45 @@ struct ContentView: View {
         //print(currentChord)
     }
     
-    
+    func buildTones(for chord: Chord) -> [(note: String, role: ToneRole)] {
+        let letters = ["C","D","E","F","G","A","B"]
+        let naturalSemitones: [String:Int] = [
+            "C":0, "D":2, "E":4, "F":5,
+            "G":7, "A":9, "B":11
+        ]
+        let degreeSteps = [2,4,6]
+        let roles: [ToneRole] = [.third, .fifth, .seventh]
+
+        let root = chord.root
+        let rootLetter = String(root.prefix(1))
+        let rootLetterIndex = letters.firstIndex(of: rootLetter)!
+        let rootSemitone = noteToSemitone[root]!
+
+        var tones: [(note: String, role: ToneRole)] = []
+        tones.append((note: root, role: .root))
+
+        for (i, interval) in chord.type.intervals.enumerated() {
+            let realSemitone = (rootSemitone + interval) % 12
+
+            let letterIndex = (rootLetterIndex + degreeSteps[i]) % 7
+            let baseLetter = letters[letterIndex]
+            let baseSemitone = naturalSemitones[baseLetter]!
+
+            var diff = realSemitone - baseSemitone
+            if diff > 6 { diff -= 12 }
+            if diff < -6 { diff += 12 }
+
+            var accidental = ""
+            if diff == -2 { accidental = "♭♭" }
+            else if diff == -1 { accidental = "♭" }
+            else if diff == 1 { accidental = "♯" }
+            else if diff == 2 { accidental = "♯♯" }
+
+            tones.append((note: baseLetter + accidental, role: roles[i]))
+        }
+
+        return tones
+    }
     func tritoneSubstitute(of chord: Chord) -> Chord? {
         guard chord.type.name == "7" else { return nil }
         //print("7th!")
@@ -968,7 +959,18 @@ struct ContentView: View {
     
     
     //音から役割を取り出す
+    /*
     func role(for note: String) -> ToneRole? {
+        return fullTones.first { $0.note == note }?.role
+    }
+    */
+    func role(for note: String) -> ToneRole? {
+        if mode == .tonesToChord,
+           let currentQuizChord {
+            return buildTones(for: currentQuizChord)
+                .first { $0.note == note }?
+                .role
+        }
         return fullTones.first { $0.note == note }?.role
     }
     
