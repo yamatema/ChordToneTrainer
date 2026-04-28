@@ -739,58 +739,10 @@ struct ContentView: View {
             //正答表示用
             promptTones = chordTones.shuffled() //問題文
             
-            let preferredNames = distractorMap[correctChord.type.name] ?? []
-            // 優先候補
-            var preferredChoices = availableChordTypes.filter {
-                preferredNames.contains($0.name)
-            }
-
-            // 足りない分を補う
-            let remainingChoices = availableChordTypes.filter {
-                $0.name != correctChord.type.name && !preferredNames.contains($0.name)
-            }
-
-            // 最大3つに制限
-            preferredChoices.shuffle()
-            var selectedWrongTypes = Array(preferredChoices.prefix(3))
-
-            if selectedWrongTypes.count < 3 {
-                let needed = 3 - selectedWrongTypes.count
-                let supplement = Array(remainingChoices.shuffled().prefix(needed))
-                selectedWrongTypes += supplement
-            }
-            
-            
-            let distractorRoot: String
-            if correctChord.root != actualChord.root {
-                distractorRoot = actualChord.root
-                //print("sub!")
-            } else {
-                distractorRoot = correctChord.root
-                
-            }
-            
-            //誤答コードを作る
-            let wrongChords = selectedWrongTypes.map {
-                Chord(root: distractorRoot, type: $0)
-            }
-            
-            /*
-            //条件に合致するなら誤答にトライトーン代理を混ぜる
-            if !showRootInPrompt && !showFifthInPrompt,
-               let sub = tritoneSubstitute(of: correctChord) {
-                if !wrongChords.contains(sub) {
-                    if !wrongChords.isEmpty {
-                        wrongChords[0] = sub
-                    } else {
-                        wrongChords.append(sub)
-                    }
-                }
-            }
-             */
-            
-            currentChordOptions = ([correctChord] + wrongChords).shuffled()
-            
+            currentChordOptions = makeChordOptions(
+                correctChord: correctChord,
+                actualChord: actualChord
+            )
             
         case .iiVIMode:
             chordTones = fullTones.map { $0.note }
@@ -814,6 +766,7 @@ struct ContentView: View {
         
         //print(currentChord)
     }
+    
     
     func buildTones(for chord: Chord) -> [(note: String, role: ToneRole)] {
         let letters = ["C","D","E","F","G","A","B"]
@@ -854,6 +807,42 @@ struct ContentView: View {
 
         return tones
     }
+    
+    
+    func makeChordOptions(correctChord: Chord, actualChord: Chord) -> [Chord] {
+        let preferredNames = distractorMap[correctChord.type.name] ?? []
+
+        var preferredChoices = availableChordTypes.filter {
+            preferredNames.contains($0.name)
+        }
+
+        let remainingChoices = availableChordTypes.filter {
+            $0.name != correctChord.type.name && !preferredNames.contains($0.name)
+        }
+
+        preferredChoices.shuffle()
+        var selectedWrongTypes = Array(preferredChoices.prefix(3))
+
+        if selectedWrongTypes.count < 3 {
+            let needed = 3 - selectedWrongTypes.count
+            let supplement = Array(remainingChoices.shuffled().prefix(needed))
+            selectedWrongTypes += supplement
+        }
+
+        let distractorRoot: String
+        if correctChord.root != actualChord.root {
+            distractorRoot = actualChord.root
+        } else {
+            distractorRoot = correctChord.root
+        }
+
+        let wrongChords = selectedWrongTypes.map {
+            Chord(root: distractorRoot, type: $0)
+        }
+
+        return ([correctChord] + wrongChords).shuffled()
+    }
+    
     func tritoneSubstitute(of chord: Chord) -> Chord? {
         guard chord.type.name == "7" else { return nil }
         //print("7th!")
