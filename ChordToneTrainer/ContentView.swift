@@ -692,11 +692,11 @@ struct ContentView: View {
         let actualChord = Chord(root: actualRoot, type: actualChordType)
         
         let correctChord: Chord
-        if mode == .tonesToChord,
-            !showRootInPrompt,
-            !showFifthInPrompt,
-           let sub = tritoneSubstitute(of: actualChord) {
-            correctChord = Bool.random() ? actualChord : sub
+        if mode == .tonesToChord {
+            let candidates = candidateChords(for: actualChord)
+            let equivalents = equivalentChords(for: actualChord, candidates: candidates)
+
+            correctChord = equivalents.randomElement() ?? actualChord
         } else {
             correctChord = actualChord
         }
@@ -811,6 +811,8 @@ struct ContentView: View {
     
     func makeChordOptions(correctChord: Chord, actualChord: Chord) -> [Chord] {
         let preferredNames = distractorMap[correctChord.type.name] ?? []
+        let candidates = candidateChords(for: actualChord)
+        let equivalents = equivalentChords(for: actualChord, candidates: candidates)
 
         var preferredChoices = availableChordTypes.filter {
             preferredNames.contains($0.name)
@@ -840,8 +842,13 @@ struct ContentView: View {
             Chord(root: distractorRoot, type: $0)
         }
 
-        return ([correctChord] + wrongChords).shuffled()
+        let filteredWrongChords = wrongChords.filter { wrong in
+            !equivalents.contains(wrong)
+        }
+        print(equivalents.map { chordName(for: $0) }) 
+        return ([correctChord] + filteredWrongChords).shuffled()
     }
+    
     
     func tritoneSubstitute(of chord: Chord) -> Chord? {
         guard chord.type.name == "7" else { return nil }
@@ -853,6 +860,42 @@ struct ContentView: View {
         let subRoot = notes[subRootSemitone]
 
         return Chord(root: subRoot, type: chord.type)
+    }
+    
+    
+    func visibleSignature(for chord: Chord) -> [Int] {
+        let tones = buildTones(for: chord)
+
+        let visible = tones.filter { tone in
+            if !showRootInPrompt && tone.role == .root { return false }
+            if !showFifthInPrompt && tone.role == .fifth { return false }
+            return true
+        }
+
+        return visible.compactMap { noteToSemitone[$0.note] }
+            .sorted()
+    }
+    
+    
+    func candidateChords(for chord: Chord) -> [Chord] {
+        var candidates = availableChordTypes.map {
+            Chord(root: chord.root, type: $0)
+        }
+
+        if let sub = tritoneSubstitute(of: chord) {
+            candidates.append(sub)
+        }
+
+        return candidates
+    }
+    
+    
+    func equivalentChords(for chord: Chord, candidates: [Chord]) -> [Chord] {
+        let targetSignature = visibleSignature(for: chord)
+
+        return candidates.filter {
+            visibleSignature(for: $0) == targetSignature
+        }
     }
     
     
