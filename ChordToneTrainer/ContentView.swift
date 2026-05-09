@@ -811,8 +811,6 @@ struct ContentView: View {
     
     func makeChordOptions(correctChord: Chord, actualChord: Chord) -> [Chord] {
         let preferredNames = distractorMap[correctChord.type.name] ?? []
-        let candidates = candidateChords(for: actualChord)
-        let equivalents = equivalentChords(for: actualChord, candidates: candidates)
 
         var preferredChoices = availableChordTypes.filter {
             preferredNames.contains($0.name)
@@ -842,11 +840,29 @@ struct ContentView: View {
             Chord(root: distractorRoot, type: $0)
         }
 
-        let filteredWrongChords = wrongChords.filter { wrong in
+        let equivalents = equivalentChords(
+            for: actualChord,
+            candidates: candidateChords(for: actualChord)
+        )
+        
+        var filteredWrongChords = wrongChords.filter { wrong in
             !equivalents.contains(wrong)
         }
-        print(equivalents.map { chordName(for: $0) }) 
-        return ([correctChord] + filteredWrongChords).shuffled()
+        
+        if filteredWrongChords.count < 3 {
+            let needed = 3 - filteredWrongChords.count
+            let supplementCandidates = availableChordTypes
+                .map { Chord(root: distractorRoot, type: $0) }
+                .filter { chord in
+                    chord != correctChord
+                    && !equivalents.contains(chord)
+                    && !filteredWrongChords.contains(chord)
+                }
+                .shuffled()
+            filteredWrongChords += Array(supplementCandidates.prefix(needed))
+        }
+
+        return ([correctChord] + filteredWrongChords.prefix(3)).shuffled()
     }
     
     
