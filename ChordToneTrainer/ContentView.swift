@@ -161,7 +161,6 @@ struct ContentView: View {
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
-
         guard fullTones.count >= 3 else { return [] }
         
         if answerOrder.isEmpty {
@@ -174,7 +173,6 @@ struct ContentView: View {
         return fullTones
             .filter { $0.role == role }
             .map { $0.note }
-
     }
     
     
@@ -188,22 +186,16 @@ struct ContentView: View {
     //回答同時選択数（ボタンを押した状態にできる最大数）
     var maxSelectableCount: Int {
         switch mode {
-
         case .chordToTones:
             return correctNotes.count   // 7thなら4つ（将来テンションにも対応）
-
         case .guideTones:
             return 1   // 常に1音ずつ
-            
         case .sequential:
             return 1
-            
         case .iiVIMode:
             return 1
-
         case .tonesToChord:
             return 1
-            
         }
     }
     
@@ -221,16 +213,12 @@ struct ContentView: View {
         switch mode {
         case .chordToTones:
             return fullTones.map { $0.role }
-            
         case .guideTones:
             return answerOrder
-            
         case .sequential:
             return answerOrder
-            
         case .iiVIMode:
             return answerOrder
-            
         case .tonesToChord:
             return []
         }
@@ -311,7 +299,6 @@ struct ContentView: View {
                 return "Next"
             }
         }
-
         return showingAnswer ? "Next" : "Show"
     }
     
@@ -849,6 +836,7 @@ struct ContentView: View {
             !equivalents.contains(wrong)
         }
         
+        
         if filteredWrongChords.count < 3 {
             let needed = 3 - filteredWrongChords.count
             let supplementCandidates = availableChordTypes
@@ -861,14 +849,38 @@ struct ContentView: View {
                 .shuffled()
             filteredWrongChords += Array(supplementCandidates.prefix(needed))
         }
+        
+        
+        if !showRootInPrompt {
+            let replacementOffsets = [7, 5, 1]
 
+            for (index, offset) in replacementOffsets.enumerated() {
+                guard index < filteredWrongChords.count else { break }
+                guard let newRoot = rootByOffset(
+                    from: correctChord.root,
+                    offset: offset
+                ) else { continue }
+
+                let replacementType = filteredWrongChords[index].type
+                let replacement = Chord(
+                    root: newRoot,
+                    type: replacementType
+                )
+
+                if replacement != correctChord,
+                   !equivalents.contains(replacement),
+                   !filteredWrongChords.contains(replacement) {
+                    filteredWrongChords[index] = replacement
+                }
+            }
+        }
+        
         return ([correctChord] + filteredWrongChords.prefix(3)).shuffled()
     }
     
     
     func tritoneSubstitute(of chord: Chord) -> Chord? {
         guard chord.type.name == "7" else { return nil }
-        //print("7th!")
 
         guard let rootSemitone = noteToSemitone[chord.root] else { return nil }
 
@@ -903,6 +915,12 @@ struct ContentView: View {
         }
 
         return candidates
+    }
+    
+    
+    func rootByOffset(from root: String, offset: Int) -> String? {
+        guard let semitone = noteToSemitone[root] else { return nil }
+        return notes[(semitone + offset) % 12]
     }
     
     
@@ -951,7 +969,6 @@ struct ContentView: View {
                 return s
             }
         }
-
         return nil
     }
     
@@ -1028,13 +1045,7 @@ struct ContentView: View {
         
     }
     
-    
-    //音から役割を取り出す
-    /*
-    func role(for note: String) -> ToneRole? {
-        return fullTones.first { $0.note == note }?.role
-    }
-    */
+
     func role(for note: String) -> ToneRole? {
         if mode == .tonesToChord,
            let currentQuizChord {
