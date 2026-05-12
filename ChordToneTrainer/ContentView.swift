@@ -201,10 +201,11 @@ struct ContentView: View {
     
     //出題条件
     var availableChordTypes: [ChordType] {
+        /*
         if mode == .tonesToChord && !showFifthInPrompt {
             return chordTypes.filter { $0.name != "ø" }
         }
-
+         */
         return chordTypes
     }
     
@@ -444,7 +445,7 @@ struct ContentView: View {
                 //回答用ボタンUI
                 //コード選択UI
                 if mode == .tonesToChord {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
                         ForEach(currentChordOptions, id: \.self) { chord in
                             let chordLabel = chordName(for: chord)
                             
@@ -459,7 +460,7 @@ struct ContentView: View {
                                 let style = palette(for: chordLabel)
                                 
                                 Text(chordLabel)
-                                    .font(.title2)
+                                    .font(.title3)
                                     .frame(maxWidth: .infinity)
                                     .padding()
                                     .background(style.background)
@@ -482,7 +483,7 @@ struct ContentView: View {
                                 let style = palette(for: note)
                                 
                                 Text(note)
-                                    .font(.title2)
+                                    .font(.title3)
                                     .frame(maxWidth: .infinity)
                                     .padding()
                                     .background(style.background)
@@ -849,42 +850,51 @@ struct ContentView: View {
         
         
         if !showRootInPrompt {
-            //誤答選択肢のrootを変更する
-            let replacementOffsets = [7, 5, 1]
+            let rootOffsets = [0, 7, 5] // 正解root, 5度上, 4度上
+            let optionsPerRoot = 4
 
-            for (index, offset) in replacementOffsets.enumerated() {
-                guard index < filteredWrongChords.count else { break }
-                guard let newRoot = rootByOffset(
-                    from: correctChord.root,
-                    offset: offset
-                ) else { continue }
-                
-                //変更後のrootに対して正答と区別可能なchordtypeを集める
-                let safeCandidates = availableChordTypes.map { type in
-                    Chord(root: newRoot, type: type)
-                }
-                .filter { candidate in
-                    candidate != correctChord
-                    && visibleSignature(for: candidate) != correctSignature
-                    && !filteredWrongChords.contains(candidate)
+            var options: [Chord] = []
+
+            for offset in rootOffsets {
+                guard let root = rootByOffset(from: correctChord.root, offset: offset) else {
+                    continue
                 }
 
-                //safeCandidatesから「いい誤答」を選別
-                let bestScore = safeCandidates
-                    .map { similarityScore($0, to: correctSignature) }
-                    .max()
+                // このrootで使える候補を作る
+                let candidates = availableChordTypes
+                    .map { Chord(root: root, type: $0) }
+                    .filter { chord in
+                        chord == correctChord ||
+                        (
+                            chord != correctChord &&
+                            visibleSignature(for: chord) != correctSignature &&
+                            !options.contains(chord)
+                        )
+                    }
 
-                let bestCandidates = safeCandidates.filter {
-                    similarityScore($0, to: correctSignature) == bestScore
-                }
+                if root == correctChord.root {
+                    options.append(correctChord)
 
-                if let replacement = bestCandidates.randomElement() {
-                    filteredWrongChords[index] = replacement
+                    let wrongForSameRoot = candidates
+                        .filter { $0 != correctChord }
+                        .shuffled()
+                        .prefix(optionsPerRoot - 1)
+
+                    options += Array(wrongForSameRoot)
+                } else {
+                    let wrongForOtherRoot = candidates
+                        .filter { $0 != correctChord }
+                        .shuffled()
+                        .prefix(optionsPerRoot)
+
+                    options += Array(wrongForOtherRoot)
                 }
             }
+
+            return Array(options.prefix(rootOffsets.count * optionsPerRoot)).shuffled()
+        } else {
+            return ([correctChord] + filteredWrongChords.prefix(3)).shuffled()
         }
-        
-        return ([correctChord] + filteredWrongChords.prefix(3)).shuffled()
     }
     
     
