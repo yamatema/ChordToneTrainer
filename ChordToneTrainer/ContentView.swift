@@ -751,7 +751,7 @@ struct ContentView: View {
         currentRoot = actualRoot
         currentChordType = actualChordType.name
         
-        //print(currentChord)
+        print(correctChord.root, correctChord.type.name)
     }
     
     
@@ -826,14 +826,11 @@ struct ContentView: View {
         let wrongChords = selectedWrongTypes.map {
             Chord(root: distractorRoot, type: $0)
         }
-
-        let equivalents = equivalentChords(
-            for: actualChord,
-            candidates: candidateChords(for: actualChord)
-        )
         
-        var filteredWrongChords = wrongChords.filter { wrong in
-            !equivalents.contains(wrong)
+        let correctSignature = visibleSignature(for: correctChord)
+        var filteredWrongChords = wrongChords.filter { chord in
+            chord != correctChord
+            && visibleSignature(for: chord) != correctSignature
         }
         
         
@@ -843,7 +840,7 @@ struct ContentView: View {
                 .map { Chord(root: distractorRoot, type: $0) }
                 .filter { chord in
                     chord != correctChord
-                    && !equivalents.contains(chord)
+                    && visibleSignature(for: chord) != correctSignature
                     && !filteredWrongChords.contains(chord)
                 }
                 .shuffled()
@@ -852,6 +849,7 @@ struct ContentView: View {
         
         
         if !showRootInPrompt {
+            //誤答選択肢のrootを変更する
             let replacementOffsets = [7, 5, 1]
 
             for (index, offset) in replacementOffsets.enumerated() {
@@ -860,16 +858,27 @@ struct ContentView: View {
                     from: correctChord.root,
                     offset: offset
                 ) else { continue }
+                
+                //変更後のrootに対して正答と区別可能なchordtypeを集める
+                let safeCandidates = availableChordTypes.map { type in
+                    Chord(root: newRoot, type: type)
+                }
+                .filter { candidate in
+                    candidate != correctChord
+                    && visibleSignature(for: candidate) != correctSignature
+                    && !filteredWrongChords.contains(candidate)
+                }
 
-                let replacementType = filteredWrongChords[index].type
-                let replacement = Chord(
-                    root: newRoot,
-                    type: replacementType
-                )
+                //safeCandidatesから「いい誤答」を選別
+                let bestScore = safeCandidates
+                    .map { similarityScore($0, to: correctSignature) }
+                    .max()
 
-                if replacement != correctChord,
-                   !equivalents.contains(replacement),
-                   !filteredWrongChords.contains(replacement) {
+                let bestCandidates = safeCandidates.filter {
+                    similarityScore($0, to: correctSignature) == bestScore
+                }
+
+                if let replacement = bestCandidates.randomElement() {
                     filteredWrongChords[index] = replacement
                 }
             }
@@ -930,6 +939,13 @@ struct ContentView: View {
         return candidates.filter {
             visibleSignature(for: $0) == targetSignature
         }
+    }
+    
+    
+    // プレイヤーから見た状態での「類似度」スコア　高いほど似ている
+    func similarityScore(_ chord: Chord, to targetSignature: [Int]) -> Int {
+        let sig = visibleSignature(for: chord)
+        return sig.filter { targetSignature.contains($0) }.count
     }
     
     
