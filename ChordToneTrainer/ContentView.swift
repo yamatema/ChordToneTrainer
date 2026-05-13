@@ -260,34 +260,37 @@ struct ContentView: View {
         mode != .tonesToChord || isProcessing || revealStep != .none || showingAnswer
     }
     
-    var shouldShowTritoneSubFeedback: Bool {
-        guard let currentActualChord,
-              let currentQuizChord else { return false }
-
-        return mode == .tonesToChord
-            && !showRootInPrompt
-            && !showFifthInPrompt
-            && (showingAnswer || answerChecked || revealStep == .answer)
-            && currentActualChord.root != currentQuizChord.root
-            && currentQuizChord.type.name == "7"
+    var shouldShowTheoryFeedback: Bool {
+        mode == .tonesToChord
+        && (showingAnswer || answerChecked || revealStep == .answer)
     }
     
     var tritoneSubLabel: String? {
-        guard shouldShowTritoneSubFeedback,
-              let actual = currentActualChord,
-              let quiz = currentQuizChord else { return nil }
+        guard shouldShowTheoryFeedback,
+              let chord = currentQuizChord,
+              let sub = tritoneSubstitute(of: chord)
+        else { return nil }
 
-        let a = chordName(for: actual)
-        let q = chordName(for: quiz)
+        let original = chordName(for: chord)
+        let substitute = chordName(for: sub)
 
-        return "Tritone Substitution (\(a) ↔︎ \(q))"
-        //左右を固定したい時はこっち
-        /*
-        return a < q
-            ? "Tritone Sub (\(a) ↔ \(q))"
-            : "Tritone Sub (\(q) ↔︎ \(a))"
-         */
+        return "Tritone Substitution (\(original) ↔︎ \(substitute))"
     }
+    
+    var dim7SymmetryLabel: String? {
+        guard shouldShowTheoryFeedback,
+              let chord = currentQuizChord,
+              chord.type.name == "dim7"
+        else { return nil }
+        
+        let names = diminishedEquivalentRoots(for: chord.root)
+            .map { "\($0)dim7" }
+            .joined(separator: " = ")
+        
+        return "Symmetric Dim.\n\(names)"
+    }
+    
+    
     
     var showButtonLabel: String {
         if mode == .tonesToChord && !showRootInPrompt {
@@ -381,13 +384,20 @@ struct ContentView: View {
                             }
                         }
                         
-                        //トライトーン代理の補助テキスト
-                        if shouldShowTritoneSubFeedback {
-                            if let label = tritoneSubLabel {
-                                Text(label)
-                                    .font(.title3)
-                                    .foregroundColor(.secondary)
-                            }
+                        //トライトーン代理についての補助テキスト
+                        if let label = tritoneSubLabel {
+                            Text(label)
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        //dim7の対称性ついての補助テキスト
+                        if let label = dim7SymmetryLabel {
+                            Text(label)
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .multilineTextAlignment(.center)
                         }
                         
                         //どれを答えるかの表示
@@ -585,37 +595,7 @@ struct ContentView: View {
                             forceDominant7ForTest = false
                         }
                     }
-                    /*
-                    Toggle("Prompt Controls", isOn: $showPromptControls)
-                    if showPromptControls {
-                        VStack(alignment: .leading) {
-                            Toggle("↳ Show Root in Prompt", isOn: $showRootInPrompt)
-                                .disabled(isPromptOptionDisabled)
-                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                            Toggle("↳ Show 5th in Prompt", isOn: $showFifthInPrompt)
-                                .disabled(isPromptOptionDisabled)
-                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                        }.padding(.leading, 24)
-                    }
-                    Toggle("Test Controls", isOn: Binding(
-                        get: { showTestControls },
-                        set: { newValue in
-                            showTestControls = newValue
-                            
-                            if newValue {
-                                forceRootCForTest = false
-                                forceDominant7ForTest = false
-                            }
-                        }
-                    ))
-                    if showTestControls {
-                        VStack(alignment: .leading) {
-                            Toggle("↳ Force Root C", isOn: $forceRootCForTest)
-                            Toggle("↳ Force 7 Chord", isOn: $forceDominant7ForTest)
-                        }
-                        .padding(.leading, 24)
-                    }
-                    */
+                    
                 }
                 .padding(.horizontal, 40)
                 
@@ -678,16 +658,10 @@ struct ContentView: View {
         }
         
         let actualChord = Chord(root: actualRoot, type: actualChordType)
+        let correctChord = actualChord
         
-        let correctChord: Chord
-        if mode == .tonesToChord {
-            let candidates = candidateChords(for: actualChord)
-            let equivalents = equivalentChords(for: actualChord, candidates: candidates)
-
-            correctChord = equivalents.randomElement() ?? actualChord
-        } else {
-            correctChord = actualChord
-        }
+        //let candidates = candidateChords(for: actualChord)
+        //let equivalents = equivalentChords(for: actualChord, candidates: candidates)
         
         currentQuizChord = correctChord
         currentActualChord = actualChord
@@ -752,7 +726,6 @@ struct ContentView: View {
         currentRoot = actualRoot
         currentChordType = actualChordType.name
         
-        print(correctChord.root, correctChord.type.name)
     }
     
     
@@ -932,8 +905,10 @@ struct ContentView: View {
         if let sub = tritoneSubstitute(of: chord) {
             candidates.append(sub)
         }
+        
+        candidates += diminishedEquivalentChords(for: chord)
 
-        return candidates
+        return Array(Set(candidates))
     }
     
     
@@ -952,12 +927,26 @@ struct ContentView: View {
     }
     
     
+    func diminishedEquivalentChords(for chord: Chord) -> [Chord] {
+        guard chord.type.name == "dim7" else { return [] }
+
+        return diminishedEquivalentRoots(for: chord.root).map {
+            Chord(root: $0, type: chord.type)
+        }
+    }
+    
     // プレイヤーから見た状態での「類似度」スコア　高いほど似ている
     func similarityScore(_ chord: Chord, to targetSignature: [Int]) -> Int {
         let sig = visibleSignature(for: chord)
         return sig.filter { targetSignature.contains($0) }.count
     }
     
+    
+    func diminishedEquivalentRoots(for root: String) -> [String] {
+        [0, 3, 6, 9].compactMap {
+            rootByOffset(from: root, offset: $0)
+        }
+    }
     
     func generateIIVI() -> IIVIProgression {
         
