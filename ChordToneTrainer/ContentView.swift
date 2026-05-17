@@ -139,7 +139,7 @@ struct ContentView: View {
     @State private var answerOrder: [ToneRole] = []
     @State private var answerStep = 0
     //表示遅延（正解時、不正解時）および遅延中フラグ
-    @State private var correctDelay: Double = 1.0
+    @State private var correctDelay: Double = 2.0
     @State private var wrongDelay: Double = 2.0
     @State private var isProcessing = false
     
@@ -265,6 +265,7 @@ struct ContentView: View {
         && (showingAnswer || answerChecked || revealStep == .answer)
     }
     
+    /*
     var tritoneSubLabel: String? {
         guard shouldShowTheoryFeedback,
               let chord = currentQuizChord,
@@ -287,10 +288,32 @@ struct ContentView: View {
             .map { "\($0)dim7" }
             .joined(separator: " = ")
         
-        return "Symmetric Dim.\n\(names)"
+        return "Same ChordTones:\n\(names)"
     }
+    */
     
-    
+    var otherPossibleChordLabel: String? {
+        guard shouldShowTheoryFeedback,
+              let currentQuizChord else { return nil }
+
+        let visibleEquivalents = equivalentChords(
+            for: currentQuizChord,
+            candidates: allCandidateChords()
+        )
+        
+        let dimEquivalents = currentQuizChord.type.name == "dim7"
+            ? diminishedEquivalentChords(for: currentQuizChord)
+            : []
+
+        let others = Array(Set(visibleEquivalents + dimEquivalents))
+            .filter { $0 != currentQuizChord }
+            .map { chordName(for: $0) }
+            .sorted()
+
+        guard !others.isEmpty else { return nil }
+
+        return "Also possible: \n" + others.joined(separator: ", ")
+    }
     
     var showButtonLabel: String {
         if mode == .tonesToChord && !showRootInPrompt {
@@ -384,6 +407,7 @@ struct ContentView: View {
                             }
                         }
                         
+                        /*
                         //トライトーン代理についての補助テキスト
                         if let label = tritoneSubLabel {
                             Text(label)
@@ -399,6 +423,16 @@ struct ContentView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                                 .multilineTextAlignment(.center)
                         }
+                        */
+                        
+                        if let label = otherPossibleChordLabel {
+                            Text(label)
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        
                         
                         //どれを答えるかの表示
                         if answerStep < answerOrder.count {
@@ -896,7 +930,7 @@ struct ContentView: View {
             .sorted()
     }
     
-    
+    /*
     func candidateChords(for chord: Chord) -> [Chord] {
         var candidates = availableChordTypes.map {
             Chord(root: chord.root, type: $0)
@@ -910,7 +944,16 @@ struct ContentView: View {
 
         return Array(Set(candidates))
     }
+     */
     
+    
+    func allCandidateChords() -> [Chord] {
+        notes.flatMap { root in
+            chordTypes.map { type in
+                Chord(root: root, type: type)
+            }
+        }
+    }
     
     func rootByOffset(from root: String, offset: Int) -> String? {
         guard let semitone = noteToSemitone[root] else { return nil }
@@ -926,6 +969,13 @@ struct ContentView: View {
         }
     }
     
+
+    // プレイヤーから見た状態での「類似度」スコア　高いほど似ている
+    func similarityScore(_ chord: Chord, to targetSignature: [Int]) -> Int {
+        let sig = visibleSignature(for: chord)
+        return sig.filter { targetSignature.contains($0) }.count
+    }
+    
     
     func diminishedEquivalentChords(for chord: Chord) -> [Chord] {
         guard chord.type.name == "dim7" else { return [] }
@@ -934,19 +984,12 @@ struct ContentView: View {
             Chord(root: $0, type: chord.type)
         }
     }
-    
-    // プレイヤーから見た状態での「類似度」スコア　高いほど似ている
-    func similarityScore(_ chord: Chord, to targetSignature: [Int]) -> Int {
-        let sig = visibleSignature(for: chord)
-        return sig.filter { targetSignature.contains($0) }.count
-    }
-    
-    
     func diminishedEquivalentRoots(for root: String) -> [String] {
         [0, 3, 6, 9].compactMap {
             rootByOffset(from: root, offset: $0)
         }
     }
+    
     
     func generateIIVI() -> IIVIProgression {
         
