@@ -32,6 +32,12 @@ extension ToneRole {
     }
 }
 
+//tonesToChordモード ヒント・正答表示制御
+enum RevealStep {
+    case none
+    case hint
+    case answer
+}
 
 
 struct ChordType: Equatable, Hashable {
@@ -131,6 +137,8 @@ struct ContentView: View {
     @State private var showFifthInPrompt = false //問題文5th表示ON/OFF
     //@State private var showPromptControls = false
     @State private var currentActualChord: Chord? = nil
+    @State private var revealStep: RevealStep = .none //ヒント→回答ステップ
+    @State private var hintTone: (note: String, role: ToneRole)? = nil
     //正解判定をしたかどうか
     @State private var answerChecked = false
     //guideTonesモード 回答ステップ
@@ -147,17 +155,6 @@ struct ContentView: View {
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
     @State private var forceDominant7ForTest = false
-    
-    
-    //tonesToChordモード ヒント・正答表示制御
-    enum RevealStep {
-        case none
-        case hint
-        case answer
-    }
-
-    @State private var revealStep: RevealStep = .none
-    
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
@@ -241,6 +238,18 @@ struct ContentView: View {
             
             return true
         }
+    }
+    
+    
+    var hintText: String {
+        if mode == .tonesToChord {
+            if !showRootInPrompt && !showFifthInPrompt,
+               let hintTone {
+                return "Hint: \(hintTone.note) is \(roleLabel(hintTone.role))."
+            }
+            return "Hint: Focus the guide tones."
+        }
+        return "Hint UNAVAILABLE"
     }
     
     
@@ -396,8 +405,8 @@ struct ContentView: View {
                                 Text(visiblePromptTones.joined(separator: ", ") + " → ?")
                                     .font(.largeTitle)
                                 
-                                if revealStep == .hint {
-                                    Text("Hint... Root = \(currentRoot)")
+                                if revealStep == .hint && !answerChecked {
+                                    Text(hintText)
                                         .font(.title3)
                                         .foregroundColor(.secondary)
                                 }
@@ -406,24 +415,6 @@ struct ContentView: View {
                                     .font(.largeTitle)
                             }
                         }
-                        
-                        /*
-                        //トライトーン代理についての補助テキスト
-                        if let label = tritoneSubLabel {
-                            Text(label)
-                                .font(.title3)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        //dim7の対称性ついての補助テキスト
-                        if let label = dim7SymmetryLabel {
-                            Text(label)
-                                .font(.title3)
-                                .foregroundColor(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .multilineTextAlignment(.center)
-                        }
-                        */
                         
                         if let label = otherPossibleChordLabel {
                             Text(label)
@@ -704,12 +695,10 @@ struct ContentView: View {
         fullTones = []
         answerOrder = []
         answerStep = 0
+        promptTones = []
+        hintTone = nil
         
         fullTones = buildTones(for: actualChord)
-        
-        //リセット
-        promptTones = []
-        
         
         switch mode {
             
@@ -739,6 +728,22 @@ struct ContentView: View {
                 correctChord: correctChord,
                 actualChord: actualChord
             )
+            
+            let quizTones = buildTones(for: correctChord)
+
+            let visibleGuideTones = quizTones.filter { tone in
+                if !showRootInPrompt && tone.role == .root {
+                    return false
+                }
+
+                if !showFifthInPrompt && tone.role == .fifth {
+                    return false
+                }
+
+                return tone.role == .third || tone.role == .seventh
+            }
+
+            hintTone = visibleGuideTones.randomElement()
             
         case .iiVIMode:
             chordTones = fullTones.map { $0.note }
