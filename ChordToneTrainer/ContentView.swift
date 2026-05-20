@@ -67,10 +67,14 @@ struct ContentView: View {
     
     enum QuizMode: String, CaseIterable {
         case chordToTones = "Chord → Tones"
-        case guideTones = "3rd & 7th"
         case sequential = "Sequential"
         case tonesToChord = "Tones → Chord"
         case iiVIMode = "ii-V-I"
+    }
+    
+    enum SequentialPreset: String, CaseIterable {
+        case chordTones = "Chord Tones"
+        case guideTones = "Guide Tones"
     }
     
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
@@ -111,8 +115,8 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    //現在のモード
     @State private var mode: QuizMode = .tonesToChord
+    @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
     //コードトーン（表示用）
@@ -141,8 +145,6 @@ struct ContentView: View {
     @State private var hintTone: (note: String, role: ToneRole)? = nil
     //正解判定をしたかどうか
     @State private var answerChecked = false
-    //guideTonesモード 回答ステップ
-    //@State private var guideStep = 0
     //sequentialモード 回答させる順番・ステップ
     @State private var answerOrder: [ToneRole] = []
     @State private var answerStep = 0
@@ -185,8 +187,6 @@ struct ContentView: View {
         switch mode {
         case .chordToTones:
             return correctNotes.count   // 7thなら4つ（将来テンションにも対応）
-        case .guideTones:
-            return 1   // 常に1音ずつ
         case .sequential:
             return 1
         case .iiVIMode:
@@ -211,8 +211,6 @@ struct ContentView: View {
         switch mode {
         case .chordToTones:
             return fullTones.map { $0.role }
-        case .guideTones:
-            return answerOrder
         case .sequential:
             return answerOrder
         case .iiVIMode:
@@ -258,7 +256,7 @@ struct ContentView: View {
     }
     
     var isShuffleAvailable: Bool {
-        mode == .guideTones || mode == .sequential || mode == .iiVIMode
+        mode == .sequential || mode == .iiVIMode
     }
     
     var isCheckDisabled: Bool {
@@ -273,33 +271,6 @@ struct ContentView: View {
         mode == .tonesToChord
         && (showingAnswer || answerChecked || revealStep == .answer)
     }
-    
-    /*
-    var tritoneSubLabel: String? {
-        guard shouldShowTheoryFeedback,
-              let chord = currentQuizChord,
-              let sub = tritoneSubstitute(of: chord)
-        else { return nil }
-
-        let original = chordName(for: chord)
-        let substitute = chordName(for: sub)
-
-        return "Tritone Substitution (\(original) ↔︎ \(substitute))"
-    }
-    
-    var dim7SymmetryLabel: String? {
-        guard shouldShowTheoryFeedback,
-              let chord = currentQuizChord,
-              chord.type.name == "dim7"
-        else { return nil }
-        
-        let names = diminishedEquivalentRoots(for: chord.root)
-            .map { "\($0)dim7" }
-            .joined(separator: " = ")
-        
-        return "Same ChordTones:\n\(names)"
-    }
-    */
     
     var otherPossibleChordLabel: String? {
         guard shouldShowTheoryFeedback,
@@ -407,7 +378,7 @@ struct ContentView: View {
                                 
                                 if revealStep == .hint && !answerChecked {
                                     Text(hintText)
-                                        .font(.title3)
+                                        .font(.title2)
                                         .foregroundColor(.secondary)
                                 }
                             } else {
@@ -418,7 +389,7 @@ struct ContentView: View {
                         
                         if let label = otherPossibleChordLabel {
                             Text(label)
-                                .font(.title3)
+                                .font(.title2)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -428,7 +399,7 @@ struct ContentView: View {
                         //どれを答えるかの表示
                         if answerStep < answerOrder.count {
                             Text("\(roleLabel(answerOrder[answerStep])) ?")
-                                .font(.title3)
+                                .font(.title2)
 
                         } else if mode == .chordToTones {
                             let rolesText = targetRoles
@@ -436,7 +407,7 @@ struct ContentView: View {
                                 .joined(separator: ", ")
 
                             Text("\(rolesText)?")
-                                .font(.title3)
+                                .font(.title2)
                         }
                         
                         //正答部分の枠
@@ -592,33 +563,48 @@ struct ContentView: View {
                     .opacity(isCheckDisabled ? 0.5 : 1.0)
                 }
                 
-                //各種切り替えトグル
+                //各種切り替えpicker/toggle
                 VStack {
                     Spacer()
                     
-                    Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
-                        .disabled(!isShuffleAvailable)
-                        .opacity(isShuffleAvailable ? 1.0 : 0.3)
-                    DisclosureGroup("Prompt Controls") {
-                        VStack(alignment: .leading) {
-                            Toggle("↳ Show Root in Prompt", isOn: $showRootInPrompt)
-                                .disabled(isPromptOptionDisabled)
-                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                            Toggle("↳ Show 5th in Prompt", isOn: $showFifthInPrompt)
-                                .disabled(isPromptOptionDisabled)
-                                .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                        }.padding(.leading, 24)
-                    }
-                    DisclosureGroup("Test Controls", isExpanded: $isTestControlsExpanded) {
-                        VStack(alignment: .leading) {
-                            Toggle("↳ Force Root C", isOn: $forceRootCForTest)
-                            Toggle("↳ Force 7 Chord", isOn: $forceDominant7ForTest)
-                        }.padding(.leading, 24)
-                    }.onChange(of: isTestControlsExpanded) { oldValue, newValue in
-                        if !newValue {
-                            forceRootCForTest = false
-                            forceDominant7ForTest = false
+                    if mode == .sequential {
+                        Picker("Sequential Preset", selection: $sequentialPreset) {
+                            ForEach(SequentialPreset.allCases, id: \.self) { preset in
+                                Text(preset.rawValue).tag(preset)
+                            }
                         }
+                        .pickerStyle(.segmented)
+                        .disabled(isProcessing || showingAnswer || answerChecked)
+                        
+                        Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
+                            .disabled(!isShuffleAvailable)
+                            .opacity(isShuffleAvailable ? 1.0 : 0.3)
+                    }
+                    
+                    if mode == .tonesToChord {
+                        DisclosureGroup("Prompt Controls") {
+                            VStack(alignment: .leading) {
+                                Toggle("↳ Show Root in Prompt", isOn: $showRootInPrompt)
+                                    .disabled(isPromptOptionDisabled)
+                                    .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+                                Toggle("↳ Show 5th in Prompt", isOn: $showFifthInPrompt)
+                                    .disabled(isPromptOptionDisabled)
+                                    .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+                            }.padding(.leading, 24)
+                        }
+                        
+                        DisclosureGroup("Test Controls", isExpanded: $isTestControlsExpanded) {
+                            VStack(alignment: .leading) {
+                                Toggle("↳ Force Root C", isOn: $forceRootCForTest)
+                                Toggle("↳ Force 7 Chord", isOn: $forceDominant7ForTest)
+                            }.padding(.leading, 24)
+                        }.onChange(of: isTestControlsExpanded) { oldValue, newValue in
+                            if !newValue {
+                                forceRootCForTest = false
+                                forceDominant7ForTest = false
+                            }
+                        }
+                        
                     }
                     
                 }
@@ -632,8 +618,6 @@ struct ContentView: View {
                     case .chordToTones:
                         mode = .sequential
                     case .sequential:
-                        mode = .guideTones
-                    case .guideTones:
                         mode = .tonesToChord
                     case .tonesToChord:
                         mode = .iiVIMode
@@ -707,15 +691,16 @@ struct ContentView: View {
             chordTones = fullTones.map { $0.note }
             answerOrder = []
             
-        case .guideTones:
-            currentChord = actualRoot + actualChordType.name
-            chordTones = fullTones.map { $0.note }
-            answerOrder = [.third, .seventh]
-            
         case .sequential:
             currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
-            answerOrder = [.third, .fifth, .seventh]
+            
+            switch sequentialPreset {
+            case .chordTones:
+                answerOrder = [.third, .fifth, .seventh]
+            case .guideTones:
+                answerOrder = [.third, .seventh]
+            }
             
         case .tonesToChord:
             currentChord = actualRoot + actualChordType.name
