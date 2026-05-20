@@ -77,6 +77,11 @@ struct ContentView: View {
         case guideTones = "Guide Tones"
     }
     
+    enum PromptVisibility: String, CaseIterable {
+        case full = "Full Tones"
+        case guideTonesOnly = "Guide Tones Only"
+    }
+    
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
     //回答UI 異名同音表記対応用
     let noteButtons = ["C","C♯/D♭","D","D♯/E♭","E","F","F♯/G♭","G","G♯/A♭","A","A♯/B♭","B"]
@@ -137,9 +142,7 @@ struct ContentView: View {
     @State private var currentChordType: String = ""
     @State private var currentChordOptions: [Chord] = []
     @State private var promptTones: [String] = [] //問題文表示用
-    @State private var showRootInPrompt = false //問題文ルート表示ON/OFF
-    @State private var showFifthInPrompt = false //問題文5th表示ON/OFF
-    //@State private var showPromptControls = false
+    @State private var promptVisibility: PromptVisibility = .full
     @State private var currentActualChord: Chord? = nil
     @State private var revealStep: RevealStep = .none //ヒント→回答ステップ
     @State private var hintTone: (note: String, role: ToneRole)? = nil
@@ -220,6 +223,13 @@ struct ContentView: View {
         }
     }
     
+    var showRootInPrompt: Bool {
+        promptVisibility == .full
+    }
+
+    var showFifthInPrompt: Bool {
+        promptVisibility == .full
+    }
     
     var visiblePromptTones: [String] {
         if mode != .tonesToChord {
@@ -569,7 +579,8 @@ struct ContentView: View {
                     
                     if mode == .sequential {
                         Picker("Sequential Preset", selection: $sequentialPreset) {
-                            ForEach(SequentialPreset.allCases, id: \.self) { preset in
+                            ForEach(SequentialPreset.allCases, id: \.self) {
+                                preset in
                                 Text(preset.rawValue).tag(preset)
                             }
                         }
@@ -582,16 +593,21 @@ struct ContentView: View {
                     }
                     
                     if mode == .tonesToChord {
-                        DisclosureGroup("Prompt Controls") {
-                            VStack(alignment: .leading) {
-                                Toggle("↳ Show Root in Prompt", isOn: $showRootInPrompt)
-                                    .disabled(isPromptOptionDisabled)
-                                    .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                                Toggle("↳ Show 5th in Prompt", isOn: $showFifthInPrompt)
-                                    .disabled(isPromptOptionDisabled)
-                                    .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                            }.padding(.leading, 24)
+                        Picker("Prompt Visibility", selection: $promptVisibility) {
+                            ForEach(PromptVisibility.allCases, id: \.self) { visibility in
+                                Text(visibility.rawValue).tag(visibility)
+                            }
                         }
+                        .pickerStyle(.segmented)
+                        .onChange(of: promptVisibility) { oldValue, newValue in
+                            guard oldValue != newValue else { return }
+                            guard mode == .tonesToChord else { return }
+                            guard !isPromptOptionDisabled else { return }
+
+                            generateChord()
+                        }
+                        .disabled(isPromptOptionDisabled)
+                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
                         
                         DisclosureGroup("Test Controls", isExpanded: $isTestControlsExpanded) {
                             VStack(alignment: .leading) {
