@@ -476,14 +476,11 @@ struct ContentView: View {
                             } label: {
                                 let style = palette(for: chordLabel)
                                 
-                                Text(chordLabel)
-                                    .font(.title3)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(style.background)
-                                    .foregroundColor(style.foreground)
-                                    .cornerRadius(8)
-                                    .opacity(isInputDisabled ? 0.8 : 1.0)
+                                AnswerButtonLabel(
+                                    title: chordLabel,
+                                    style: style,
+                                    isDisabled: isInputDisabled
+                                )
                             }
                             .disabled(isInputDisabled)
                         }
@@ -499,14 +496,11 @@ struct ContentView: View {
                             }) {
                                 let style = palette(for: note)
                                 
-                                Text(note)
-                                    .font(.title3)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(style.background)
-                                    .foregroundColor(style.foreground)
-                                    .cornerRadius(8)
-                                    .opacity(isInputDisabled ? 0.8 : 1.0)
+                                AnswerButtonLabel(
+                                    title: note,
+                                    style: style,
+                                    isDisabled: isInputDisabled
+                                )
                             }
                             .disabled(isInputDisabled)
                         }
@@ -1247,6 +1241,24 @@ struct ModeHeaderView: View {
                 .bold()
         }
         .padding(.horizontal)
+    }
+}
+
+
+struct AnswerButtonLabel: View {
+    let title: String
+    let style: ButtonStylePalette
+    let isDisabled: Bool
+
+    var body: some View {
+        Text(title)
+            .font(.title3)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(style.background)
+            .foregroundColor(style.foreground)
+            .cornerRadius(8)
+            .opacity(isDisabled ? 0.8 : 1.0)
     }
 }
 
