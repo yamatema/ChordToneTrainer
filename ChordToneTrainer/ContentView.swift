@@ -609,17 +609,11 @@ struct ContentView: View {
                         .disabled(isPromptOptionDisabled)
                         .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
                         
-                        DisclosureGroup("Test Controls", isExpanded: $isTestControlsExpanded) {
-                            VStack(alignment: .leading) {
-                                Toggle("↳ Force Root C", isOn: $forceRootCForTest)
-                                Toggle("↳ Force 7 Chord", isOn: $forceDominant7ForTest)
-                            }.padding(.leading, 24)
-                        }.onChange(of: isTestControlsExpanded) { oldValue, newValue in
-                            if !newValue {
-                                forceRootCForTest = false
-                                forceDominant7ForTest = false
-                            }
-                        }
+                        TestControlsView(
+                            isExpanded: $isTestControlsExpanded,
+                            forceRootCForTest: $forceRootCForTest,
+                            forceDominant7ForTest: $forceDominant7ForTest
+                        )
                         
                     }
                     
@@ -1215,6 +1209,27 @@ struct ContentView: View {
 }
 
 
+struct TestControlsView: View {
+    @Binding var isExpanded: Bool
+    @Binding var forceRootCForTest: Bool
+    @Binding var forceDominant7ForTest: Bool
+
+    var body: some View {
+        DisclosureGroup("Test Controls", isExpanded: $isExpanded) {
+            VStack(alignment: .leading) {
+                Toggle("↳ Force Root C", isOn: $forceRootCForTest)
+                Toggle("↳ Force 7 Chord", isOn: $forceDominant7ForTest)
+            }
+            .padding(.leading, 24)
+        }
+        .onChange(of: isExpanded) { oldValue, newValue in
+            if !newValue {
+                forceRootCForTest = false
+                forceDominant7ForTest = false
+            }
+        }
+    }
+}
 
 #Preview {
     ContentView()
