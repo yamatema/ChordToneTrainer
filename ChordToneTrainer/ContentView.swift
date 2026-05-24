@@ -73,13 +73,13 @@ struct ContentView: View {
     }
     
     enum SequentialPreset: String, CaseIterable {
-        case chordTones = "Chord Tones"
+        case chordTones = "Full Tones"
         case guideTones = "Guide Tones"
     }
     
     enum PromptVisibility: String, CaseIterable {
         case full = "Full Tones"
-        case guideTonesOnly = "Guide Tones Only"
+        case guideTonesOnly = "Guide Tones"
     }
     
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
@@ -160,6 +160,15 @@ struct ContentView: View {
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
     @State private var forceDominant7ForTest = false
+    
+    var modeDisplayName: String {
+        if mode == .sequential {
+            return sequentialPreset.rawValue
+        }
+
+        return mode.rawValue
+    }
+    
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
@@ -351,15 +360,7 @@ struct ContentView: View {
                 VStack {
                     
                     // HEADER
-                    HStack(spacing: 8) {
-                        Text("Mode : ")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(mode.rawValue)
-                            .font(.headline)
-                            .bold()
-                        
-                    }
+                    ModeHeaderView(modeName: modeDisplayName)
                     
                     .padding(.horizontal)
 
@@ -1230,6 +1231,25 @@ struct TestControlsView: View {
         }
     }
 }
+
+
+struct ModeHeaderView: View {
+    let modeName: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Mode : ")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(modeName)
+                .font(.headline)
+                .bold()
+        }
+        .padding(.horizontal)
+    }
+}
+
 
 #Preview {
     ContentView()
