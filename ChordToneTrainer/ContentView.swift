@@ -79,7 +79,7 @@ struct ContentView: View {
     
     enum PromptVisibility: String, CaseIterable {
         case full = "Full Tones"
-        case guideTonesOnly = "Guide Tones"
+        case guideTones = "Guide Tones"
     }
     
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
@@ -510,11 +510,12 @@ struct ContentView: View {
                 
                 
 
-                HStack {
-                    
-                    // CONTROLS
-                    Button(action: {
-                        if mode == .tonesToChord && !showRootInPrompt {
+                ControlButtonsView(
+                    showButtonLabel: showButtonLabel,
+                    isProcessing: isProcessing,
+                    isCheckDisabled: isCheckDisabled,
+                    onShowTapped: {
+                        if mode == .tonesToChord && promptVisibility == .guideTones {
                             switch revealStep {
                             case .none:
                                 revealStep = .hint
@@ -532,41 +533,17 @@ struct ContentView: View {
                                 showingAnswer = true
                             }
                         }
-                    }) {
-                        Text(showButtonLabel)
-                            .font(.title2)
-                            .padding()
-                            .frame(maxWidth: 100)
-                            .background(Color.gray)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                    }
-                    .padding()
-                    .disabled(isProcessing)
-                    .opacity(isProcessing ? 0.5 : 1.0)
-                    
-                    //回答チェック
-                    Button(action: {
+                    },
+                    onCheckTapped: {
                         let isCorrect = checkAnswer()
-                        
-                        answerChecked = true
-                        
-                        updateShowingAnswer(isCorrect: isCorrect)
-                        
-                        proceedAfterAnswer(isCorrect: isCorrect)
 
-                    }) {
-                        Text("Check")
-                            .font(.title2)
-                            .padding()
-                            .frame(maxWidth: 100)
-                            .background(Color.gray)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
+                        answerChecked = true
+
+                        updateShowingAnswer(isCorrect: isCorrect)
+
+                        proceedAfterAnswer(isCorrect: isCorrect)
                     }
-                    .disabled(isCheckDisabled)
-                    .opacity(isCheckDisabled ? 0.5 : 1.0)
-                }
+                )
                 
                 //各種切り替えpicker/toggle
                 VStack {
@@ -1259,6 +1236,48 @@ struct AnswerButtonLabel: View {
             .foregroundColor(style.foreground)
             .cornerRadius(8)
             .opacity(isDisabled ? 0.8 : 1.0)
+    }
+}
+
+
+struct ControlButtonsView: View {
+    let showButtonLabel: String
+    let isProcessing: Bool
+    let isCheckDisabled: Bool
+    let onShowTapped: () -> Void
+    let onCheckTapped: () -> Void
+
+    var body: some View {
+        HStack {
+            Button(action: {
+                onShowTapped()
+            }) {
+                Text(showButtonLabel)
+                    .font(.title2)
+                    .padding()
+                    .frame(maxWidth: 100)
+                    .background(Color.gray)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+            }
+            .padding()
+            .disabled(isProcessing)
+            .opacity(isProcessing ? 0.5 : 1.0)
+
+            Button(action: {
+                onCheckTapped()
+            }) {
+                Text("Check")
+                    .font(.title2)
+                    .padding()
+                    .frame(maxWidth: 100)
+                    .background(Color.gray)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+            }
+            .disabled(isCheckDisabled)
+            .opacity(isCheckDisabled ? 0.5 : 1.0)
+        }
     }
 }
 
