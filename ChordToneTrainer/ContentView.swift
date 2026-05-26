@@ -282,6 +282,10 @@ struct ContentView: View {
         showingAnswer || answerChecked
     }
     
+    var isSequentialPresetDisabled: Bool {
+        mode != .sequential || isProcessing || showingAnswer || answerChecked
+    }
+    
     var isPromptOptionDisabled: Bool {
         mode != .tonesToChord || isProcessing || revealStep != .none || showingAnswer
     }
@@ -557,7 +561,15 @@ struct ContentView: View {
                             }
                         }
                         .pickerStyle(.segmented)
-                        .disabled(isProcessing || showingAnswer || answerChecked)
+                        .disabled(isSequentialPresetDisabled)
+                        .opacity(!isSequentialPresetDisabled ? 1.0 : 0.3)
+                        .onChange(of: sequentialPreset) { oldValue, newValue in
+                            guard oldValue != newValue else { return }
+                            guard mode == .sequential else { return }
+                            guard !isSequentialPresetDisabled else { return }
+
+                            generateChord()
+                        }
                         
                         Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                             .disabled(!isShuffleAvailable)
@@ -571,6 +583,8 @@ struct ContentView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                        .disabled(isPromptOptionDisabled)
+                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
                         .onChange(of: promptVisibility) { oldValue, newValue in
                             guard oldValue != newValue else { return }
                             guard mode == .tonesToChord else { return }
@@ -578,8 +592,7 @@ struct ContentView: View {
 
                             generateChord()
                         }
-                        .disabled(isPromptOptionDisabled)
-                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
+
                         
                         TestControlsView(
                             isExpanded: $isTestControlsExpanded,
