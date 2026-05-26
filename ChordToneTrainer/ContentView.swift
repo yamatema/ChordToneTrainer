@@ -611,13 +611,11 @@ struct ContentView: View {
                         shuffleEnabled = false
                     }
                     
-                    if mode == .tonesToChord {
-                        selectedNotes.removeAll()
-                    } else {
-                        selectedChord = nil
-                    }
+                    selectedNotes.removeAll()
+                    selectedChord = nil
                     
                     generateChord()
+                    
                 }
                 .padding(.bottom, 40)
                 .disabled(isProcessing || showingAnswer)
@@ -685,8 +683,6 @@ struct ContentView: View {
             }
             
         case .tonesToChord:
-            currentChord = actualRoot + actualChordType.name
-            //chordTones = fullTones.map { $0.note }
             chordTones = buildTones(for: correctChord).map { $0.note }
             //正答表示用
             promptTones = chordTones.shuffled() //問題文
@@ -1165,14 +1161,18 @@ struct ContentView: View {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             isProcessing = false
+            
+            if mode == .tonesToChord {
+                selectedChord = nil
+                generateChord()
+                return
+            }
+            
             if answerStep < answerOrder.count - 1 {
                 answerStep += 1
                 selectedNotes = []
                 answerChecked = false
             } else {
-                if mode == .tonesToChord {
-                    selectedChord = nil
-                }
                 generateChord()
             }
         }
