@@ -138,12 +138,11 @@ struct ContentView: View {
     @State private var selectedNotes: [String] = []
     @State private var selectedChord: String? = nil //tonesToChordモード専用
     //tonesToChordモード用
-    @State private var currentRoot: String = ""
-    @State private var currentChordType: String = ""
+
     @State private var currentChordOptions: [Chord] = []
     @State private var promptTones: [String] = [] //問題文表示用
     @State private var promptVisibility: PromptVisibility = .full
-    @State private var currentActualChord: Chord? = nil
+
     @State private var revealStep: RevealStep = .none //ヒント→回答ステップ
     @State private var hintTone: (note: String, role: ToneRole)? = nil
     //正解判定をしたかどうか
@@ -207,16 +206,7 @@ struct ContentView: View {
             return 1
         }
     }
-    
-    //出題条件
-    var availableChordTypes: [ChordType] {
-        /*
-        if mode == .tonesToChord && !showFifthInPrompt {
-            return chordTypes.filter { $0.name != "ø" }
-        }
-         */
-        return chordTypes
-    }
+
     
     //答えさせる(target)音
     var targetRoles: [ToneRole] {
@@ -643,7 +633,7 @@ struct ContentView: View {
             : Int.random(in: 0..<notes.count)
         let chordType = forceDominant7ForTest
             ? chordTypes.first { $0.name == "7"}!
-            : availableChordTypes.randomElement()!
+            : chordTypes.randomElement()!
         
         let root = notes[rootIndex]
         var actualRoot = root
@@ -666,7 +656,7 @@ struct ContentView: View {
         //let equivalents = equivalentChords(for: actualChord, candidates: candidates)
         
         currentQuizChord = correctChord
-        currentActualChord = actualChord
+
         
         //リセット
         fullTones = []
@@ -738,9 +728,6 @@ struct ContentView: View {
         selectedNotes = []
         answerChecked = false
         
-        currentRoot = actualRoot
-        currentChordType = actualChordType.name
-        
     }
     
     
@@ -788,11 +775,11 @@ struct ContentView: View {
     func makeChordOptions(correctChord: Chord, actualChord: Chord) -> [Chord] {
         let preferredNames = distractorMap[correctChord.type.name] ?? []
 
-        var preferredChoices = availableChordTypes.filter {
+        var preferredChoices = chordTypes.filter {
             preferredNames.contains($0.name)
         }
 
-        let remainingChoices = availableChordTypes.filter {
+        let remainingChoices = chordTypes.filter {
             $0.name != correctChord.type.name && !preferredNames.contains($0.name)
         }
 
@@ -825,7 +812,7 @@ struct ContentView: View {
         
         if filteredWrongChords.count < 3 {
             let needed = 3 - filteredWrongChords.count
-            let supplementCandidates = availableChordTypes
+            let supplementCandidates = chordTypes
                 .map { Chord(root: distractorRoot, type: $0) }
                 .filter { chord in
                     chord != correctChord
@@ -849,7 +836,7 @@ struct ContentView: View {
                 }
 
                 // このrootで使える候補を作る
-                let candidates = availableChordTypes
+                let candidates = chordTypes
                     .map { Chord(root: root, type: $0) }
                     .filter { chord in
                         chord == correctChord ||
@@ -910,22 +897,6 @@ struct ContentView: View {
         return visible.compactMap { noteToSemitone[$0.note] }
             .sorted()
     }
-    
-    /*
-    func candidateChords(for chord: Chord) -> [Chord] {
-        var candidates = availableChordTypes.map {
-            Chord(root: chord.root, type: $0)
-        }
-
-        if let sub = tritoneSubstitute(of: chord) {
-            candidates.append(sub)
-        }
-        
-        candidates += diminishedEquivalentChords(for: chord)
-
-        return Array(Set(candidates))
-    }
-     */
     
     
     func allCandidateChords() -> [Chord] {
