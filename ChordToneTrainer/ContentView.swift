@@ -136,14 +136,13 @@ struct ContentView: View {
     @State private var shuffleEnabled = false
     //プレイヤーの回答
     @State private var selectedNotes: [String] = []
-    @State private var selectedChord: String? = nil //tonesToChordモード専用
+    @State private var selectedChord: Chord? = nil
     //tonesToChordモード用
-
     @State private var currentChordOptions: [Chord] = []
-    @State private var promptTones: [String] = [] //問題文表示用
+    @State private var promptTones: [String] = []
     @State private var promptVisibility: PromptVisibility = .full
-
-    @State private var revealStep: RevealStep = .none //ヒント→回答ステップ
+    //tonesToChordモード・ヒント関連
+    @State private var revealStep: RevealStep = .none
     @State private var hintTone: (note: String, role: ToneRole)? = nil
     //正解判定をしたかどうか
     @State private var answerChecked = false
@@ -461,10 +460,10 @@ struct ContentView: View {
                             let chordLabel = chordName(for: chord)
                             
                             Button {
-                                if selectedChord == chordLabel {
+                                if selectedChord == chord {
                                     selectedChord = nil
                                 } else {
-                                    selectedChord = chordLabel
+                                    selectedChord = chord
                                 }
                                 
                             } label: {
@@ -1007,7 +1006,7 @@ struct ContentView: View {
                 return ButtonStylePalette(background: .gray.opacity(0.2), foreground: .blue)
             }
             
-            isSelected = (selectedChord == value)
+            isSelected = selectedChord.map { chordName(for: $0) } == value
             isCorrect = (value == chordName(for: currentQuizChord))
             
         } else {
@@ -1112,7 +1111,7 @@ struct ContentView: View {
     func checkAnswer() -> Bool {
         if mode == .tonesToChord {
             guard let currentQuizChord else { return false }
-            return selectedChord == chordName(for: currentQuizChord)
+            return selectedChord == currentQuizChord
         }
         
         let selectedSemitones =
