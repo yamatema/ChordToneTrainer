@@ -151,7 +151,7 @@ struct ContentView: View {
     @State private var answerStep = 0
     //表示遅延（正解時、不正解時）および遅延中フラグ
     @State private var correctDelay: Double = 2.0
-    @State private var wrongDelay: Double = 2.0
+    @State private var wrongDelay: Double = 10.0
     @State private var isProcessing = false
     
     //テストプレイ用
@@ -246,6 +246,17 @@ struct ContentView: View {
         }
     }
     
+    //tonesToChordモード 回答selectedと正答correctの比較用
+    var selectedChordTones: [(note: String, role: ToneRole)] {
+        guard let selectedChord else { return [] }
+        return buildTones(for: selectedChord)
+    }
+
+    var correctChordTones: [(note: String, role: ToneRole)] {
+        guard let currentQuizChord else { return [] }
+        return buildTones(for: currentQuizChord)
+    }
+    
     
     var hintText: String {
         if mode == .tonesToChord {
@@ -284,6 +295,7 @@ struct ContentView: View {
         && (showingAnswer || answerChecked || revealStep == .answer)
     }
     
+    // also possible...
     var otherPossibleChordLabel: String? {
         guard shouldShowTheoryFeedback,
               let currentQuizChord else { return nil }
@@ -445,7 +457,35 @@ struct ContentView: View {
                             }
                         }.padding()
                         
-                        
+                        if mode == .tonesToChord,
+                           answerChecked,
+                           !checkAnswer(),
+                           selectedChord != nil {
+
+                            Text("Your chord tones")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(selectedChordTones, id: \.note) { tone in
+                                    let isIncluded = isToneInCorrectChord(tone.note)
+
+                                    VStack(spacing: 4) {
+                                        Text(tone.note)
+                                            .font(.title2)
+
+                                        Text(roleLabel(tone.role))
+                                            .font(.caption)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(8)
+                                    .background(isIncluded ? Color.green.opacity(0.7) : Color.red.opacity(0.7))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
                         
                     }
                 }
@@ -1159,6 +1199,21 @@ struct ContentView: View {
                 generateChord()
             }
         }
+    }
+    
+    
+    func pitchClasses(from tones: [(note: String, role: ToneRole)]) -> [Int] {
+        tones.compactMap {
+            noteToSemitone[$0.note]
+        }
+    }
+    
+    func isToneInCorrectChord(_ note: String) -> Bool {
+        guard let pitchClass = noteToSemitone[note] else {
+            return false
+        }
+
+        return pitchClasses(from: correctChordTones).contains(pitchClass)
     }
     
 }
