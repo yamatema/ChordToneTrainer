@@ -146,12 +146,13 @@ struct ContentView: View {
     @State private var hintTone: (note: String, role: ToneRole)? = nil
     //正解判定をしたかどうか
     @State private var answerChecked = false
+    @State private var lastAnswerWasCorrect: Bool? = nil
     //sequentialモード 回答させる順番・ステップ
     @State private var answerOrder: [ToneRole] = []
     @State private var answerStep = 0
     //表示遅延（正解時、不正解時）および遅延中フラグ
     @State private var correctDelay: Double = 2.0
-    @State private var wrongDelay: Double = 10.0
+    @State private var wrongDelay: Double = 5.0
     @State private var isProcessing = false
     
     //テストプレイ用
@@ -403,7 +404,9 @@ struct ContentView: View {
                             }
                         }
                         
-                        if let label = otherPossibleChordLabel {
+                        // also possible...
+                        if let label = otherPossibleChordLabel,
+                           lastAnswerWasCorrect != false {
                             Text(label)
                                 .font(.title2)
                                 .foregroundColor(.secondary)
@@ -459,7 +462,7 @@ struct ContentView: View {
                         
                         if mode == .tonesToChord,
                            answerChecked,
-                           !checkAnswer(),
+                           lastAnswerWasCorrect == false,
                            selectedChord != nil {
 
                             Text("Your chord tones")
@@ -569,7 +572,8 @@ struct ContentView: View {
                     },
                     onCheckTapped: {
                         let isCorrect = checkAnswer()
-
+                        
+                        lastAnswerWasCorrect = isCorrect
                         answerChecked = true
 
                         updateShowingAnswer(isCorrect: isCorrect)
@@ -766,6 +770,7 @@ struct ContentView: View {
         //Checkの後、Nextを押す際に回答をリセット
         selectedNotes = []
         answerChecked = false
+        lastAnswerWasCorrect = nil
         
     }
     
@@ -1195,6 +1200,7 @@ struct ContentView: View {
                 answerStep += 1
                 selectedNotes = []
                 answerChecked = false
+                lastAnswerWasCorrect = nil
             } else {
                 generateChord()
             }
