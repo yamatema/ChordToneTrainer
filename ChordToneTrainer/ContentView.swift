@@ -1184,6 +1184,13 @@ struct ContentView: View {
     
     
     func proceedAfterAnswer(isCorrect: Bool) {
+        if mode == .tonesToChord && !isCorrect {
+            showingAnswer = true
+            revealStep = .answer
+            isProcessing = false
+            return
+        }
+        
         let delay = isCorrect ? correctDelay : wrongDelay
         isProcessing = true
         
