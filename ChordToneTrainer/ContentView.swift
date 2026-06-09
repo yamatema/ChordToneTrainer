@@ -484,13 +484,13 @@ struct ContentView: View {
 
                                     VStack(spacing: 4) {
                                         Text(tone.note)
-                                            .font(.title2)
+                                            .font(.body)
 
                                         Text(roleLabel(tone.role))
                                             .font(.caption)
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .padding(8)
+                                    .padding(4)
                                     .background(isIncluded ? Color.green.opacity(0.7) : Color.red.opacity(0.7))
                                     .foregroundColor(.white)
                                     .cornerRadius(8)
@@ -1300,7 +1300,8 @@ struct AnswerButtonLabel: View {
         Text(title)
             .font(.title3)
             .frame(maxWidth: .infinity)
-            .padding()
+            .padding(.vertical, 10)
+            //.padding(.horizontal, 2)
             .background(style.background)
             .foregroundColor(style.foreground)
             .cornerRadius(8)
@@ -1322,8 +1323,9 @@ struct ControlButtonsView: View {
                 onShowTapped()
             }) {
                 Text(showButtonLabel)
-                    .font(.title2)
-                    .padding()
+                    .font(.title3)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
                     .frame(maxWidth: 100)
                     .background(Color.gray)
                     .foregroundColor(.white)
@@ -1337,8 +1339,9 @@ struct ControlButtonsView: View {
                 onCheckTapped()
             }) {
                 Text("Check")
-                    .font(.title2)
-                    .padding()
+                    .font(.title3)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
                     .frame(maxWidth: 100)
                     .background(Color.gray)
                     .foregroundColor(.white)
