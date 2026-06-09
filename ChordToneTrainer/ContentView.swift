@@ -459,14 +459,24 @@ struct ContentView: View {
                             }
                         }.padding()
                         
+                        //不正解時の自分が選んだコードトーン
                         if mode == .tonesToChord,
                            answerChecked,
                            lastAnswerWasCorrect == false,
                            selectedChord != nil {
 
-                            Text("Your chord tones")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            if let currentQuizChord,
+                               let selectedChord {
+                                HStack(spacing : 24) {
+                                    Text("Correct: \(chordName(for: currentQuizChord))")
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text("Your answer: \(chordName(for: selectedChord))")
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
 
                             LazyVGrid(columns: columns, spacing: 16) {
                                 ForEach(selectedChordTones, id: \.note) { tone in
