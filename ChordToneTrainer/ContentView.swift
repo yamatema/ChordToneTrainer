@@ -23,7 +23,7 @@ extension ToneRole {
         case .root: return .gray
         case .third: return .blue
         case .fifth: return .gray
-        case .seventh: return .red
+        case .seventh: return .blue
         //case .ninth: return .indigo
         //case .eleventh: return .brown
         //case .thirteenth: return .pink
@@ -152,7 +152,7 @@ struct ContentView: View {
     @State private var answerStep = 0
     //表示遅延（正解時、不正解時）および遅延中フラグ
     @State private var correctDelay: Double = 2.0
-    @State private var wrongDelay: Double = 5.0
+    @State private var wrongDelay: Double = 3.0
     @State private var isProcessing = false
     
     //テストプレイ用
@@ -445,18 +445,17 @@ struct ContentView: View {
                                 VStack(spacing: 4) {
                                     Text(displayName(for: tone))
                                         .font(.title2)
-                                if showingAnswer, let role = role(for: tone) {
-                                    Text(role.rawValue)
-                                        .font(.caption)
+                                    if showingAnswer, let role = role(for: tone) {
+                                        Text(role.rawValue)
+                                            .font(.caption)
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(8)
-                                .background(
-                                    role(for: tone)?.color ?? Color.gray.opacity(0.2))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                                    .opacity(showingAnswer ? 1 : 0)
+                                .background(answerToneBackgroundColor(for: tone))
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                                .opacity(showingAnswer ? 1 : 0)
                             }
                         }.padding()
                         
@@ -466,7 +465,7 @@ struct ContentView: View {
                            selectedChord != nil {
 
                             Text("Your chord tones")
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
 
                             LazyVGrid(columns: columns, spacing: 16) {
@@ -1099,7 +1098,16 @@ struct ContentView: View {
         
     }
     
+    
+    func answerToneBackgroundColor(for tone: String) -> Color {
+        if mode == .tonesToChord {
+            return Color.gray.opacity(0.5)
+        }
 
+        return role(for: tone)?.color ?? Color.gray.opacity(0.2)
+    }
+    
+    
     func role(for note: String) -> ToneRole? {
         if mode == .tonesToChord,
            let currentQuizChord {
