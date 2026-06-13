@@ -51,11 +51,9 @@ struct Chord: Equatable, Hashable {
 }
 
 struct IIVIProgression {
-    let ii: String
-    let v: String
-    let i: String
-    let root: String
-    let chordType: ChordType
+    let ii: Chord
+    let v: Chord
+    let i: Chord
 }
 
 struct ButtonStylePalette {
@@ -120,7 +118,7 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    @State private var mode: QuizMode = .tonesToChord
+    @State private var mode: QuizMode = .iiVIMode
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
@@ -377,11 +375,11 @@ struct ContentView: View {
                         //問題文
                         if mode == .iiVIMode, let p = currentProgression {
                             HStack(spacing: 6) {
-                                Text(p.ii)
+                                Text(chordName(for: p.ii))
                                 Text("→")
-                                Text(p.v)
+                                Text(chordName(for: p.v))
                                 Text("→")
-                                Text(p.i)
+                                Text(chordName(for: p.i))
                                     .padding(6)
                                     .background(Color.blue)
                                     .foregroundColor(.white)
@@ -695,8 +693,8 @@ struct ContentView: View {
             let result = generateIIVI()
             //上書きしてる
             currentProgression = result
-            actualRoot = result.root
-            actualChordType = result.chordType
+            actualRoot = result.i.root
+            actualChordType = result.i.type
         } else {
             currentProgression = nil
         }
@@ -1004,18 +1002,15 @@ struct ContentView: View {
         let iiIndex = (rootIndex + 2) % 12
         let vIndex = (rootIndex + 7) % 12
         
-        let ii = notes[iiIndex] + "m7"
-        let v = notes[vIndex] + "7"
-        let i = root + "M7"
-        
+        let minor7 = chordTypes.first { $0.name == "m7" }!
+        let dominant7 = chordTypes.first { $0.name == "7" }!
         let major7 = chordTypes.first { $0.name == "M7" }!
-        return IIVIProgression(
-            ii: ii,
-            v: v,
-            i: i,
-            root: root,
-            chordType: major7
-        )
+        
+        let ii = Chord(root: notes[iiIndex], type: minor7)
+        let v = Chord(root: notes[vIndex], type: dominant7)
+        let i = Chord(root: root, type: major7)
+
+        return IIVIProgression(ii: ii, v: v, i: i)
     }
     
     
