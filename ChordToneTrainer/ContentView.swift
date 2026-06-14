@@ -39,6 +39,10 @@ enum RevealStep {
     case answer
 }
 
+enum IIVIProgressionType: String {
+    case major = "Major"
+    case minor = "Minor"
+}
 
 struct ChordType: Equatable, Hashable {
     let name: String
@@ -54,6 +58,7 @@ struct IIVIProgression {
     let ii: Chord
     let v: Chord
     let i: Chord
+    let type: IIVIProgressionType
 }
 
 struct ProgressionAnswerStep {
@@ -1060,22 +1065,34 @@ struct ContentView: View {
     
     
     func generateIIVI() -> IIVIProgression {
-        
         let rootIndex = Int.random(in: 0..<notes.count)
         let root = notes[rootIndex]
         
         let iiIndex = (rootIndex + 2) % 12
         let vIndex = (rootIndex + 7) % 12
         
+        let isMinor = Bool.random()
+        
         let minor7 = chordTypes.first { $0.name == "m7" }!
+        let halfDiminished = chordTypes.first { $0.name == "ø" }!
         let dominant7 = chordTypes.first { $0.name == "7" }!
         let major7 = chordTypes.first { $0.name == "M7" }!
         
-        let ii = Chord(root: notes[iiIndex], type: minor7)
-        let v = Chord(root: notes[vIndex], type: dominant7)
-        let i = Chord(root: root, type: major7)
+        let iiType = isMinor ? halfDiminished : minor7
+        let vType = dominant7
+        let iType = isMinor ? minor7 : major7
+        let progressionType: IIVIProgressionType = isMinor ? .minor : .major
+        
+        let ii = Chord(root: notes[iiIndex], type: iiType)
+        let v = Chord(root: notes[vIndex], type: vType)
+        let i = Chord(root: root, type: iType)
 
-        return IIVIProgression(ii: ii, v: v, i: i)
+        return IIVIProgression(
+            ii: ii,
+            v: v,
+            i: i,
+            type: progressionType
+        )
     }
     
     func isCurrentProgressionChord(_ index: Int) -> Bool {
