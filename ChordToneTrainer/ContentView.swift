@@ -56,6 +56,11 @@ struct IIVIProgression {
     let i: Chord
 }
 
+struct ProgressionAnswerStep {
+    let chord: Chord
+    let roles: [ToneRole]
+}
+
 struct ButtonStylePalette {
     let background: Color
     let foreground: Color
@@ -125,8 +130,9 @@ struct ContentView: View {
     //コードトーン（表示用）
     @State private var chordTones: [String] = []
     @State private var currentChord: String = "ChordTones"
-    //コード進行（表示用。ii-V-Iモード限定）
+    //ii-V-Iモード
     @State private var currentProgression: IIVIProgression? = nil
+    @State private var progressionAnswerSteps: [ProgressionAnswerStep] = []
     //正解の中身(tones, chord)
     @State private var fullTones: [(note: String, role: ToneRole)] = []
     @State private var currentQuizChord: Chord? = nil
@@ -169,8 +175,18 @@ struct ContentView: View {
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
+        if mode == .iiVIMode {
+            guard answerStep < progressionAnswerSteps.count else { return [] }
+
+            let step = progressionAnswerSteps[answerStep]
+            let tones = buildTones(for: step.chord)
+            return tones
+                .filter { step.roles.contains($0.role) }
+                .map { $0.note }
+        }
+
         guard fullTones.count >= 3 else { return [] }
-        
+
         if answerOrder.isEmpty {
             return fullTones.map { $0.note }
         }
@@ -186,6 +202,11 @@ struct ContentView: View {
     
     //正答表示
     var displayedTones: [String] {
+        if mode == .iiVIMode {
+            guard answerStep < progressionAnswerSteps.count else { return [] }
+            let step = progressionAnswerSteps[answerStep]
+            return buildTones(for: step.chord).map { $0.note }
+        }
         //とりあえず答えの順番は入れ替えないものとする
         //shuffleEnabled ? chordTones.shuffled() : chordTones
         return chordTones
@@ -199,7 +220,7 @@ struct ContentView: View {
         case .sequential:
             return 1
         case .iiVIMode:
-            return 1
+            return 2
         case .tonesToChord:
             return 1
         }
@@ -376,13 +397,21 @@ struct ContentView: View {
                         if mode == .iiVIMode, let p = currentProgression {
                             HStack(spacing: 6) {
                                 Text(chordName(for: p.ii))
+                                    .padding(6)
+                                    .background(isCurrentProgressionChord(0) ? Color.blue : Color.clear)
+                                    .foregroundColor(isCurrentProgressionChord(0) ? .white : .primary)
+                                    .cornerRadius(6)
                                 Text("→")
                                 Text(chordName(for: p.v))
+                                    .padding(6)
+                                    .background(isCurrentProgressionChord(1) ? Color.blue : Color.clear)
+                                    .foregroundColor(isCurrentProgressionChord(1) ? .white : .primary)
+                                    .cornerRadius(6)
                                 Text("→")
                                 Text(chordName(for: p.i))
                                     .padding(6)
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
+                                    .background(isCurrentProgressionChord(2) ? Color.blue : Color.clear)
+                                    .foregroundColor(isCurrentProgressionChord(2) ? .white : .primary)
                                     .cornerRadius(6)
                             }
                             .font(.largeTitle)
@@ -414,7 +443,12 @@ struct ContentView: View {
                         
                         
                         //どれを答えるかの表示
-                        if answerStep < answerOrder.count {
+                        if mode == .iiVIMode,
+                           answerStep < progressionAnswerSteps.count {
+                            Text("3rd & 7th ?")
+                                .font(.title2)
+
+                        } else if answerStep < answerOrder.count {
                             Text("\(roleLabel(answerOrder[answerStep])) ?")
                                 .font(.title2)
 
@@ -558,6 +592,24 @@ struct ContentView: View {
                     isProcessing: isProcessing,
                     isCheckDisabled: isCheckDisabled,
                     onShowTapped: {
+                        if mode == .iiVIMode {
+                            if showingAnswer {
+                                if answerStep < progressionAnswerSteps.count - 1 {
+                                    answerStep += 1
+                                    selectedNotes = []
+                                    answerChecked = false
+                                    lastAnswerWasCorrect = nil
+                                    showingAnswer = false
+                                    revealStep = .none
+                                } else {
+                                    generateChord()
+                                }
+                            } else {
+                                showingAnswer = true
+                            }
+                            return
+                        }
+                        
                         if mode == .tonesToChord && promptVisibility == .guideTones {
                             switch revealStep {
                             case .none:
@@ -579,12 +631,9 @@ struct ContentView: View {
                     },
                     onCheckTapped: {
                         let isCorrect = checkAnswer()
-                        
                         lastAnswerWasCorrect = isCorrect
                         answerChecked = true
-
                         updateShowingAnswer(isCorrect: isCorrect)
-
                         proceedAfterAnswer(isCorrect: isCorrect)
                     }
                 )
@@ -678,6 +727,25 @@ struct ContentView: View {
     
     //問題を作る
     func generateChord() {
+        
+        //各種状態リセット
+        fullTones = []
+        answerOrder = []
+        progressionAnswerSteps = []
+        answerStep = 0
+
+        promptTones = []
+        hintTone = nil
+
+        selectedNotes = []
+        selectedChord = nil
+        answerChecked = false
+        lastAnswerWasCorrect = nil
+
+        revealStep = .none
+        showingAnswer = false
+        currentProgression = nil
+        
         let rootIndex = forceRootCForTest
             ? 0
             : Int.random(in: 0..<notes.count)
@@ -689,10 +757,18 @@ struct ContentView: View {
         var actualRoot = root
         var actualChordType = chordType
         
+
+        
         if mode == .iiVIMode {
             let result = generateIIVI()
-            //上書きしてる
+            
             currentProgression = result
+            progressionAnswerSteps = [
+                ProgressionAnswerStep(chord: result.ii, roles: [.third, .seventh]),
+                ProgressionAnswerStep(chord: result.v, roles: [.third, .seventh]),
+                ProgressionAnswerStep(chord: result.i, roles: [.third, .seventh])
+            ]
+            
             actualRoot = result.i.root
             actualChordType = result.i.type
         } else {
@@ -708,12 +784,7 @@ struct ContentView: View {
         currentQuizChord = correctChord
 
         
-        //リセット
-        fullTones = []
-        answerOrder = []
-        answerStep = 0
-        promptTones = []
-        hintTone = nil
+
         
         fullTones = buildTones(for: actualChord)
         
@@ -771,13 +842,7 @@ struct ContentView: View {
             answerOrder.shuffle()
         }
         
-        revealStep = .none
-        showingAnswer = false
-        
-        //Checkの後、Nextを押す際に回答をリセット
-        selectedNotes = []
-        answerChecked = false
-        lastAnswerWasCorrect = nil
+
         
     }
     
@@ -1013,6 +1078,9 @@ struct ContentView: View {
         return IIVIProgression(ii: ii, v: v, i: i)
     }
     
+    func isCurrentProgressionChord(_ index: Int) -> Bool {
+        mode == .iiVIMode && answerStep == index
+    }
     
     func chordName(for chord: Chord) -> String {
         chord.root + chord.type.name
@@ -1120,6 +1188,15 @@ struct ContentView: View {
                 .first { $0.note == note }?
                 .role
         }
+        
+        if mode == .iiVIMode {
+            guard answerStep < progressionAnswerSteps.count else { return nil }
+            let step = progressionAnswerSteps[answerStep]
+            return buildTones(for: step.chord)
+                .first { $0.note == note }?
+                .role
+        }
+        
         return fullTones.first { $0.note == note }?.role
     }
     
@@ -1216,11 +1293,27 @@ struct ContentView: View {
                 return
             }
             
+            if mode == .iiVIMode {
+                if answerStep < progressionAnswerSteps.count - 1 {
+                    answerStep += 1
+                    selectedNotes = []
+                    answerChecked = false
+                    lastAnswerWasCorrect = nil
+                    showingAnswer = false
+                    revealStep = .none
+                } else {
+                    generateChord()
+                }
+            return
+            }
+            
             if answerStep < answerOrder.count - 1 {
                 answerStep += 1
                 selectedNotes = []
                 answerChecked = false
                 lastAnswerWasCorrect = nil
+                showingAnswer = false
+                revealStep = .none
             } else {
                 generateChord()
             }
