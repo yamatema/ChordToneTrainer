@@ -40,10 +40,12 @@ enum RevealStep {
 }
 
 enum IIVIProgressionType: String, CaseIterable {
-    case major = "Major"
-    case minor = "Minor"
+    case major = "Major ii-V"
+    case minor = "Minor ii-V"
     case tritoneSub = "Tritone Sub"
     case backdoor = "Backdoor"
+    case secondary = "Secondary ii-V"
+    case secondaryTritoneSub = "Secondary Sub"
 }
 
 struct ChordType: Equatable, Hashable {
@@ -1072,10 +1074,9 @@ struct ContentView: View {
         
         let iiIndex = (rootIndex + 2) % 12          // M2
         let normalVIndex = (rootIndex + 7) % 12     // P5
-        let tritoneSubVIndex = (rootIndex + 1) % 12 // m2
-        let backdoorIiIndex = (rootIndex + 5) % 12  // P4
-        let backdoorVIndex = (rootIndex + 10) % 12  // m7
-        
+        let targetIndex = (rootIndex + 7) % 12      // V
+        let secondaryIiIndex = (targetIndex + 2) % 12   // ii of V
+
         let minor7 = chordTypes.first { $0.name == "m7" }!
         let halfDiminished = chordTypes.first { $0.name == "ø" }!
         let dominant7 = chordTypes.first { $0.name == "7" }!
@@ -1083,6 +1084,7 @@ struct ContentView: View {
         
         //進行タイプの決定
         let progressionType = IIVIProgressionType.allCases.randomElement()!
+        print ("progressionType: \(progressionType)")
         
         let ii: Chord
         let v: Chord
@@ -1100,15 +1102,33 @@ struct ContentView: View {
                 i = Chord(root: root, type: minor7)
 
             case .tritoneSub:
+                let tritoneSubVIndex = (rootIndex + 1) % 12 // subV
+            
                 ii = Chord(root: notes[iiIndex], type: minor7)
                 v = Chord(root: notes[tritoneSubVIndex], type: dominant7)
                 i = Chord(root: root, type: major7)
             
             case .backdoor:
+                let backdoorIiIndex = (rootIndex + 5) % 12  // P4
+                let backdoorVIndex = (rootIndex + 10) % 12  // m7
+            
                 ii = Chord(root: notes[backdoorIiIndex], type: minor7)
                 v = Chord(root: notes[backdoorVIndex], type: dominant7)
                 i = Chord(root: root, type: major7)
             
+            case .secondary:
+                let secondaryVIndex = (targetIndex + 7) % 12    // V of V
+
+                ii = Chord(root: notes[secondaryIiIndex], type: minor7)
+                v = Chord(root: notes[secondaryVIndex], type: dominant7)
+                i = Chord(root: notes[targetIndex], type: dominant7)
+            
+            case .secondaryTritoneSub:
+                let secondarySubVIndex = (targetIndex + 1) % 12 //subV of V
+
+                ii = Chord(root: notes[secondaryIiIndex], type: minor7)
+                v = Chord(root: notes[secondarySubVIndex], type: dominant7)
+                i = Chord(root: notes[targetIndex], type: dominant7)
         }
         
         return IIVIProgression(
