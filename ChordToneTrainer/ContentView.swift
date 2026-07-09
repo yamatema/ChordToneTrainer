@@ -173,9 +173,10 @@ struct ContentView: View {
     @State private var forceRootCForTest = false
     @State private var forceDominant7ForTest = false
     
+    
     var modeDisplayName: String {
         if mode == .sequential {
-            return sequentialPreset.rawValue
+            return "Sequential: " + sequentialPreset.rawValue
         }
 
         return mode.rawValue
@@ -1426,15 +1427,17 @@ struct ModeHeaderView: View {
     let modeName: String
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text("Mode : ")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Mode:")
+                .font(.subheadline)
 
             Text(modeName)
-                .font(.headline)
+                .font(.subheadline)
                 .bold()
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
     }
 }
