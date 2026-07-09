@@ -39,7 +39,7 @@ enum RevealStep {
     case answer
 }
 
-enum IIVIProgressionType: String, CaseIterable {
+enum GuideToneProgressionType: String, CaseIterable {
     case major = "Major ii-V"
     case minor = "Minor ii-V"
     case tritoneSub = "Tritone Sub"
@@ -58,11 +58,11 @@ struct Chord: Equatable, Hashable {
     let type: ChordType
 }
 
-struct IIVIProgression {
-    let ii: Chord
-    let v: Chord
-    let i: Chord
-    let type: IIVIProgressionType
+struct GuideToneProgression {
+    let first: Chord
+    let second: Chord
+    let target: Chord
+    let type: GuideToneProgressionType
 }
 
 struct ProgressionAnswerStep {
@@ -81,7 +81,7 @@ struct ContentView: View {
         case chordToTones = "Chord → Tones"
         case sequential = "Sequential"
         case tonesToChord = "Tones → Chord"
-        case iiVIMode = "ii-V-I"
+        case guideToneProgressions = "Guide Tone Progressions"
     }
     
     enum SequentialPreset: String, CaseIterable {
@@ -132,15 +132,15 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    @State private var mode: QuizMode = .iiVIMode
+    @State private var mode: QuizMode = .guideToneProgressions
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
     //コードトーン（表示用）
     @State private var chordTones: [String] = []
     @State private var currentChord: String = "ChordTones"
-    //ii-V-Iモード
-    @State private var currentProgression: IIVIProgression? = nil
+    //GuideToneProgressionモード
+    @State private var currentProgression: GuideToneProgression? = nil
     @State private var progressionAnswerSteps: [ProgressionAnswerStep] = []
     //正解の中身(tones, chord)
     @State private var fullTones: [(note: String, role: ToneRole)] = []
@@ -184,7 +184,7 @@ struct ContentView: View {
     
     //正誤判定用：正解ノート
     var correctNotes: [String] {
-        if mode == .iiVIMode {
+        if mode == .guideToneProgressions {
             guard answerStep < progressionAnswerSteps.count else { return [] }
 
             let step = progressionAnswerSteps[answerStep]
@@ -211,7 +211,7 @@ struct ContentView: View {
     
     //正答表示
     var displayedTones: [String] {
-        if mode == .iiVIMode {
+        if mode == .guideToneProgressions {
             guard answerStep < progressionAnswerSteps.count else { return [] }
             let step = progressionAnswerSteps[answerStep]
             return buildTones(for: step.chord).map { $0.note }
@@ -228,7 +228,7 @@ struct ContentView: View {
             return correctNotes.count   // 7thなら4つ（将来テンションにも対応）
         case .sequential:
             return 1
-        case .iiVIMode:
+        case .guideToneProgressions:
             return 2
         case .tonesToChord:
             return 1
@@ -243,7 +243,7 @@ struct ContentView: View {
             return fullTones.map { $0.role }
         case .sequential:
             return answerOrder
-        case .iiVIMode:
+        case .guideToneProgressions:
             return answerOrder
         case .tonesToChord:
             return []
@@ -304,7 +304,7 @@ struct ContentView: View {
     }
     
     var isShuffleAvailable: Bool {
-        mode == .sequential || mode == .iiVIMode
+        mode == .sequential || mode == .guideToneProgressions
     }
     
     var isCheckDisabled: Bool {
@@ -403,21 +403,21 @@ struct ContentView: View {
                     // MAIN
                     VStack{
                         //問題文
-                        if mode == .iiVIMode, let p = currentProgression {
+                        if mode == .guideToneProgressions, let p = currentProgression {
                             HStack(spacing: 6) {
-                                Text(chordName(for: p.ii))
+                                Text(chordName(for: p.first))
                                     .padding(6)
                                     .background(isCurrentProgressionChord(0) ? Color.blue : Color.clear)
                                     .foregroundColor(isCurrentProgressionChord(0) ? .white : .primary)
                                     .cornerRadius(6)
                                 Text("→")
-                                Text(chordName(for: p.v))
+                                Text(chordName(for: p.second))
                                     .padding(6)
                                     .background(isCurrentProgressionChord(1) ? Color.blue : Color.clear)
                                     .foregroundColor(isCurrentProgressionChord(1) ? .white : .primary)
                                     .cornerRadius(6)
                                 Text("→")
-                                Text(chordName(for: p.i))
+                                Text(chordName(for: p.target))
                                     .padding(6)
                                     .background(isCurrentProgressionChord(2) ? Color.blue : Color.clear)
                                     .foregroundColor(isCurrentProgressionChord(2) ? .white : .primary)
@@ -452,7 +452,7 @@ struct ContentView: View {
                         
                         
                         //どれを答えるかの表示
-                        if mode == .iiVIMode,
+                        if mode == .guideToneProgressions,
                            answerStep < progressionAnswerSteps.count {
                             Text("3rd & 7th ?")
                                 .font(.title2)
@@ -601,7 +601,7 @@ struct ContentView: View {
                     isProcessing: isProcessing,
                     isCheckDisabled: isCheckDisabled,
                     onShowTapped: {
-                        if mode == .iiVIMode {
+                        if mode == .guideToneProgressions {
                             if showingAnswer {
                                 if answerStep < progressionAnswerSteps.count - 1 {
                                     answerStep += 1
@@ -713,8 +713,8 @@ struct ContentView: View {
                     case .sequential:
                         mode = .tonesToChord
                     case .tonesToChord:
-                        mode = .iiVIMode
-                    case .iiVIMode:
+                        mode = .guideToneProgressions
+                    case .guideToneProgressions:
                         mode = .chordToTones
                     }
                     
@@ -768,18 +768,18 @@ struct ContentView: View {
         
 
         
-        if mode == .iiVIMode {
-            let result = generateIIVI()
+        if mode == .guideToneProgressions {
+            let result = generateGuideToneProgression()
             
             currentProgression = result
             progressionAnswerSteps = [
-                ProgressionAnswerStep(chord: result.ii, roles: [.third, .seventh]),
-                ProgressionAnswerStep(chord: result.v, roles: [.third, .seventh]),
-                ProgressionAnswerStep(chord: result.i, roles: [.third, .seventh])
+                ProgressionAnswerStep(chord: result.first, roles: [.third, .seventh]),
+                ProgressionAnswerStep(chord: result.second, roles: [.third, .seventh]),
+                ProgressionAnswerStep(chord: result.target, roles: [.third, .seventh])
             ]
             
-            actualRoot = result.i.root
-            actualChordType = result.i.type
+            actualRoot = result.target.root
+            actualChordType = result.target.type
         } else {
             currentProgression = nil
         }
@@ -841,7 +841,7 @@ struct ContentView: View {
 
             hintTone = visibleGuideTones.randomElement()
             
-        case .iiVIMode:
+        case .guideToneProgressions:
             chordTones = fullTones.map { $0.note }
             answerOrder = [.third, .seventh]
             
@@ -1068,7 +1068,7 @@ struct ContentView: View {
     }
     
     
-    func generateIIVI() -> IIVIProgression {
+    func generateGuideToneProgression() -> GuideToneProgression {
         let rootIndex = Int.random(in: 0..<notes.count)
         let root = notes[rootIndex]
         
@@ -1083,64 +1083,64 @@ struct ContentView: View {
         let major7 = chordTypes.first { $0.name == "M7" }!
         
         //進行タイプの決定
-        let progressionType = IIVIProgressionType.allCases.randomElement()!
+        let progressionType = GuideToneProgressionType.allCases.randomElement()!
         print ("progressionType: \(progressionType)")
         
-        let ii: Chord
-        let v: Chord
-        let i: Chord
+        let first: Chord
+        let second: Chord
+        let target: Chord
         
         switch progressionType {
             case .major:
-                ii = Chord(root: notes[iiIndex], type: minor7)
-                v = Chord(root: notes[normalVIndex], type: dominant7)
-                i = Chord(root: root, type: major7)
+            first = Chord(root: notes[iiIndex], type: minor7)
+            second = Chord(root: notes[normalVIndex], type: dominant7)
+            target = Chord(root: root, type: major7)
 
             case .minor:
-                ii = Chord(root: notes[iiIndex], type: halfDiminished)
-                v = Chord(root: notes[normalVIndex], type: dominant7)
-                i = Chord(root: root, type: minor7)
+            first = Chord(root: notes[iiIndex], type: halfDiminished)
+            second = Chord(root: notes[normalVIndex], type: dominant7)
+            target = Chord(root: root, type: minor7)
 
             case .tritoneSub:
                 let tritoneSubVIndex = (rootIndex + 1) % 12 // subV
             
-                ii = Chord(root: notes[iiIndex], type: minor7)
-                v = Chord(root: notes[tritoneSubVIndex], type: dominant7)
-                i = Chord(root: root, type: major7)
+            first = Chord(root: notes[iiIndex], type: minor7)
+            second = Chord(root: notes[tritoneSubVIndex], type: dominant7)
+            target = Chord(root: root, type: major7)
             
             case .backdoor:
                 let backdoorIiIndex = (rootIndex + 5) % 12  // P4
                 let backdoorVIndex = (rootIndex + 10) % 12  // m7
             
-                ii = Chord(root: notes[backdoorIiIndex], type: minor7)
-                v = Chord(root: notes[backdoorVIndex], type: dominant7)
-                i = Chord(root: root, type: major7)
+            first = Chord(root: notes[backdoorIiIndex], type: minor7)
+            second = Chord(root: notes[backdoorVIndex], type: dominant7)
+            target = Chord(root: root, type: major7)
             
             case .secondary:
                 let secondaryVIndex = (targetIndex + 7) % 12    // V of V
 
-                ii = Chord(root: notes[secondaryIiIndex], type: minor7)
-                v = Chord(root: notes[secondaryVIndex], type: dominant7)
-                i = Chord(root: notes[targetIndex], type: dominant7)
+            first = Chord(root: notes[secondaryIiIndex], type: minor7)
+            second = Chord(root: notes[secondaryVIndex], type: dominant7)
+            target = Chord(root: notes[targetIndex], type: dominant7)
             
             case .secondaryTritoneSub:
                 let secondarySubVIndex = (targetIndex + 1) % 12 //subV of V
 
-                ii = Chord(root: notes[secondaryIiIndex], type: minor7)
-                v = Chord(root: notes[secondarySubVIndex], type: dominant7)
-                i = Chord(root: notes[targetIndex], type: dominant7)
+            first = Chord(root: notes[secondaryIiIndex], type: minor7)
+            second = Chord(root: notes[secondarySubVIndex], type: dominant7)
+            target = Chord(root: notes[targetIndex], type: dominant7)
         }
         
-        return IIVIProgression(
-            ii: ii,
-            v: v,
-            i: i,
+        return GuideToneProgression(
+            first: first,
+            second: second,
+            target: target,
             type: progressionType
         )
     }
     
     func isCurrentProgressionChord(_ index: Int) -> Bool {
-        mode == .iiVIMode && answerStep == index
+        mode == .guideToneProgressions && answerStep == index
     }
     
     func chordName(for chord: Chord) -> String {
@@ -1250,7 +1250,7 @@ struct ContentView: View {
                 .role
         }
         
-        if mode == .iiVIMode {
+        if mode == .guideToneProgressions {
             guard answerStep < progressionAnswerSteps.count else { return nil }
             let step = progressionAnswerSteps[answerStep]
             return buildTones(for: step.chord)
@@ -1354,7 +1354,7 @@ struct ContentView: View {
                 return
             }
             
-            if mode == .iiVIMode {
+            if mode == .guideToneProgressions {
                 if answerStep < progressionAnswerSteps.count - 1 {
                     answerStep += 1
                     selectedNotes = []
