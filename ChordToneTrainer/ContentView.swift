@@ -48,6 +48,14 @@ enum GuideToneProgressionType: String, CaseIterable {
     case secondaryTritoneSub = "Secondary Sub"
 }
 
+//音名UI ボタン並び順設定
+enum NoteButtonLayout: String, CaseIterable, Identifiable {
+    case chromatic = "Chromatic"
+    case randomized = "Randomized"
+
+    var id: Self { self }
+}
+
 struct ChordType: Equatable, Hashable {
     let name: String
     let intervals: [Int]
@@ -96,7 +104,7 @@ struct ContentView: View {
     
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
     //回答UI 異名同音表記対応用
-    let noteButtons = ["C","C♯/D♭","D","D♯/E♭","E","F","F♯/G♭","G","G♯/A♭","A","A♯/B♭","B"]
+    let defaultNoteButtons = ["C","C♯/D♭","D","D♯/E♭","E","F","F♯/G♭","G","G♯/A♭","A","A♯/B♭","B"]
     
     let chordTypes: [ChordType] = [
         ChordType(name: "M7", intervals: [4,7,11]),
@@ -136,6 +144,9 @@ struct ContentView: View {
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
+    //音名UI ボタンの並び関連
+    @State private var noteButtons: [String] = []
+    @State private var noteButtonLayout: NoteButtonLayout = .randomized
     //コードトーン（表示用）
     @State private var chordTones: [String] = []
     @State private var currentChord: String = "ChordTones"
@@ -740,6 +751,7 @@ struct ContentView: View {
         
         //各種状態リセット
         fullTones = []
+        noteButtons = defaultNoteButtons
         answerOrder = []
         progressionAnswerSteps = []
         answerStep = 0
@@ -767,6 +779,8 @@ struct ContentView: View {
         var actualRoot = root
         var actualChordType = chordType
         
+        //音名UIの並び決定
+        refreshNoteButtonLayout()
 
         
         if mode == .guideToneProgressions {
@@ -1068,6 +1082,16 @@ struct ContentView: View {
         }
     }
     
+    func refreshNoteButtonLayout() {
+        guard mode != .tonesToChord else { return }
+        
+        switch noteButtonLayout {
+            case .chromatic:
+                noteButtons = defaultNoteButtons
+            case .randomized:
+                noteButtons = defaultNoteButtons.shuffled()
+        }
+    }
     
     func generateGuideToneProgression() -> GuideToneProgression {
         let rootIndex = Int.random(in: 0..<notes.count)
@@ -1358,6 +1382,7 @@ struct ContentView: View {
             if mode == .guideToneProgressions {
                 if answerStep < progressionAnswerSteps.count - 1 {
                     answerStep += 1
+                    refreshNoteButtonLayout()
                     selectedNotes = []
                     answerChecked = false
                     lastAnswerWasCorrect = nil
@@ -1371,6 +1396,7 @@ struct ContentView: View {
             
             if answerStep < answerOrder.count - 1 {
                 answerStep += 1
+                refreshNoteButtonLayout()
                 selectedNotes = []
                 answerChecked = false
                 lastAnswerWasCorrect = nil
