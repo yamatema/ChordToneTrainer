@@ -32,6 +32,13 @@ extension ToneRole {
     }
 }
 
+enum PromptVisibility: String, CaseIterable, Identifiable {
+    case full = "Full Tones"
+    case guideTones = "Guide Tones"
+    
+    var id: Self { self }
+}
+
 //tonesToChordモード ヒント・正答表示制御
 enum RevealStep {
     case none
@@ -97,10 +104,7 @@ struct ContentView: View {
         case guideTones = "Guide Tones"
     }
     
-    enum PromptVisibility: String, CaseIterable {
-        case full = "Full Tones"
-        case guideTones = "Guide Tones"
-    }
+
     
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
     //回答UI 異名同音表記対応用
@@ -178,7 +182,8 @@ struct ContentView: View {
     @State private var correctDelay: Double = 2.0
     @State private var wrongDelay: Double = 3.0
     @State private var isProcessing = false
-    
+    //設定画面
+    @State private var isShowingQuizSettings = false
     //テストプレイ用
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
@@ -658,6 +663,17 @@ struct ContentView: View {
                         proceedAfterAnswer(isCorrect: isCorrect)
                     }
                 )
+                
+                
+                Button {
+                    isShowingQuizSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }.sheet(isPresented: $isShowingQuizSettings) {
+                    QuizSettingsView(
+                        promptVisibility: $promptVisibility
+                    )
+                }
                 
                 //各種切り替えpicker/toggle
                 VStack {
@@ -1531,6 +1547,22 @@ struct ControlButtonsView: View {
     }
 }
 
+
+struct QuizSettingsView: View {
+    @Binding var promptVisibility: PromptVisibility
+
+    var body: some View {
+        NavigationStack {
+            Picker("Prompt", selection: $promptVisibility) {
+                ForEach(PromptVisibility.allCases) { visibility in
+                    Text(visibility.rawValue)
+                        .tag(visibility)
+                }
+            }
+            .navigationTitle("Quiz Settings")
+        }
+    }
+}
 
 #Preview {
     ContentView()
