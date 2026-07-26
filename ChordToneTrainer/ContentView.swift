@@ -665,15 +665,7 @@ struct ContentView: View {
                 )
                 
                 
-                Button {
-                    isShowingQuizSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }.sheet(isPresented: $isShowingQuizSettings) {
-                    QuizSettingsView(
-                        promptVisibility: $promptVisibility
-                    )
-                }
+
                 
                 //各種切り替えpicker/toggle
                 VStack {
@@ -733,31 +725,52 @@ struct ContentView: View {
                 
                 .padding(.bottom, 20)
                 
-                //モード切り替え
-                Button("Change Mode"){
-                    switch mode {
-                    case .chordToTones:
-                        mode = .sequential
-                    case .sequential:
-                        mode = .tonesToChord
-                    case .tonesToChord:
-                        mode = .guideToneProgressions
-                    case .guideToneProgressions:
-                        mode = .chordToTones
+                HStack {
+                    //モード切り替え
+                    Button("Change Mode"){
+                        switch mode {
+                        case .chordToTones:
+                            mode = .sequential
+                        case .sequential:
+                            mode = .tonesToChord
+                        case .tonesToChord:
+                            mode = .guideToneProgressions
+                        case .guideToneProgressions:
+                            mode = .chordToTones
+                        }
+                        
+                        if !isShuffleAvailable {
+                            shuffleEnabled = false
+                        }
+                        
+                        selectedNotes.removeAll()
+                        selectedChord = nil
+                        
+                        generateChord()
+                        
                     }
+                    .padding()
+                    .disabled(isProcessing || showingAnswer)
+                    .frame(maxWidth: 160)
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(12)
                     
-                    if !isShuffleAvailable {
-                        shuffleEnabled = false
+                    Button {
+                        isShowingQuizSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }.sheet(isPresented: $isShowingQuizSettings) {
+                        QuizSettingsView(
+                            promptVisibility: $promptVisibility
+                        )
                     }
-                    
-                    selectedNotes.removeAll()
-                    selectedChord = nil
-                    
-                    generateChord()
+                    .padding()
+                    .disabled(isProcessing || showingAnswer)
+                    .frame(maxWidth: 60)
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(12)
                     
                 }
-                .padding(.bottom, 40)
-                .disabled(isProcessing || showingAnswer)
             }
         }
     }
@@ -1549,17 +1562,28 @@ struct ControlButtonsView: View {
 
 
 struct QuizSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Binding var promptVisibility: PromptVisibility
+    
 
     var body: some View {
         NavigationStack {
-            Picker("Prompt", selection: $promptVisibility) {
-                ForEach(PromptVisibility.allCases) { visibility in
-                    Text(visibility.rawValue)
-                        .tag(visibility)
+            Form {
+                Picker("Prompt", selection: $promptVisibility) {
+                    ForEach(PromptVisibility.allCases) { visibility in
+                        Text(visibility.rawValue)
+                            .tag(visibility)
+                    }
                 }
             }
             .navigationTitle("Quiz Settings")
+            .toolbar {
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
