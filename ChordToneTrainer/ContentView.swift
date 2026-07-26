@@ -695,6 +695,7 @@ struct ContentView: View {
                     }
                     
                     if mode == .tonesToChord {
+                        /*
                         Picker("Prompt Visibility", selection: $promptVisibility) {
                             ForEach(PromptVisibility.allCases, id: \.self) { visibility in
                                 Text(visibility.rawValue).tag(visibility)
@@ -710,8 +711,7 @@ struct ContentView: View {
 
                             generateChord()
                         }
-
-                        
+                        */
                         TestControlsView(
                             isExpanded: $isTestControlsExpanded,
                             forceRootCForTest: $forceRootCForTest,
@@ -763,6 +763,12 @@ struct ContentView: View {
                         QuizSettingsView(
                             promptVisibility: $promptVisibility
                         )
+                    }.onChange(of: promptVisibility) { oldValue, newValue in
+                        guard oldValue != newValue else { return }
+                        guard mode == .tonesToChord else { return }
+                        guard !isPromptOptionDisabled else { return }
+                        
+                        generateChord()
                     }
                     .padding()
                     .disabled(isProcessing || showingAnswer)
@@ -777,6 +783,7 @@ struct ContentView: View {
     
     //問題を作る
     func generateChord() {
+        //print("generateChord called")
         
         //各種状態リセット
         fullTones = []
@@ -1138,7 +1145,6 @@ struct ContentView: View {
         
         //進行タイプの決定
         let progressionType = GuideToneProgressionType.allCases.randomElement()!
-        print ("progressionType: \(progressionType)")
         
         let first: Chord
         let second: Chord
