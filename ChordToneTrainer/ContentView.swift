@@ -753,7 +753,8 @@ struct ContentView: View {
                             mode: mode,
                             promptVisibility: $promptVisibility,
                             sequentialPreset: $sequentialPreset,
-                            shuffleEnabled: $shuffleEnabled
+                            shuffleEnabled: $shuffleEnabled,
+                            noteButtonLayout: $noteButtonLayout
                         )
                     }.onChange(of: promptVisibility) { oldValue, newValue in
                         guard oldValue != newValue else { return }
@@ -769,6 +770,8 @@ struct ContentView: View {
                         generateChord()
                     }.onChange(of: shuffleEnabled) {
                         generateChord()
+                    }.onChange(of: noteButtonLayout) {
+                        refreshNoteButtonLayout()
                     }
                     .padding()
                     .disabled(isProcessing || showingAnswer)
@@ -1574,6 +1577,8 @@ struct QuizSettingsView: View {
     @Binding var promptVisibility: PromptVisibility
     @Binding var sequentialPreset: SequentialPreset
     @Binding var shuffleEnabled: Bool
+    @Binding var noteButtonLayout: NoteButtonLayout
+    
     
 
     var body: some View {
@@ -1604,6 +1609,21 @@ struct QuizSettingsView: View {
                         }
                     }
                 }
+                
+                if mode != .tonesToChord {
+                    Section("Answer Buttons") {
+                        Picker(
+                            "Note Button Layout",
+                            selection: $noteButtonLayout
+                        ) {
+                            ForEach(NoteButtonLayout.allCases) { layout in
+                                Text(layout.rawValue)
+                                    .tag(layout)
+                            }
+                        }
+                    }
+                }
+                    
             }
             .navigationTitle("Quiz Settings")
             .toolbar {
