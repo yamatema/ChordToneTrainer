@@ -691,31 +691,15 @@ struct ContentView: View {
 
                             generateChord()
                         }
-                         */
                         
                         Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                             .disabled(!isShuffleAvailable)
                             .opacity(isShuffleAvailable ? 1.0 : 0.3)
+                        */
                     }
                     
                     if mode == .tonesToChord {
-                        /*
-                        Picker("Prompt Visibility", selection: $promptVisibility) {
-                            ForEach(PromptVisibility.allCases, id: \.self) { visibility in
-                                Text(visibility.rawValue).tag(visibility)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .disabled(isPromptOptionDisabled)
-                        .opacity(!isPromptOptionDisabled ? 1.0 : 0.3)
-                        .onChange(of: promptVisibility) { oldValue, newValue in
-                            guard oldValue != newValue else { return }
-                            guard mode == .tonesToChord else { return }
-                            guard !isPromptOptionDisabled else { return }
 
-                            generateChord()
-                        }
-                        */
                         TestControlsView(
                             isExpanded: $isTestControlsExpanded,
                             forceRootCForTest: $forceRootCForTest,
@@ -768,7 +752,8 @@ struct ContentView: View {
                         QuizSettingsView(
                             mode: mode,
                             promptVisibility: $promptVisibility,
-                            sequentialPreset: $sequentialPreset
+                            sequentialPreset: $sequentialPreset,
+                            shuffleEnabled: $shuffleEnabled
                         )
                     }.onChange(of: promptVisibility) { oldValue, newValue in
                         guard oldValue != newValue else { return }
@@ -781,6 +766,8 @@ struct ContentView: View {
                         guard mode == .sequential else { return }
                         guard !isSequentialPresetDisabled else { return }
 
+                        generateChord()
+                    }.onChange(of: shuffleEnabled) {
                         generateChord()
                     }
                     .padding()
@@ -1586,6 +1573,7 @@ struct QuizSettingsView: View {
     let mode: QuizMode
     @Binding var promptVisibility: PromptVisibility
     @Binding var sequentialPreset: SequentialPreset
+    @Binding var shuffleEnabled: Bool
     
 
     var body: some View {
@@ -1598,6 +1586,11 @@ struct QuizSettingsView: View {
                                 Text(preset.rawValue).tag(preset)
                             }
                         }
+                        
+                        Toggle(
+                            "Shuffle Answer Order",
+                            isOn: $shuffleEnabled
+                        )
                     }
                 }
                 
