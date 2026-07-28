@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+enum QuizMode: String, CaseIterable {
+    case chordToTones = "Chord → Tones"
+    case sequential = "Sequential"
+    case tonesToChord = "Tones → Chord"
+    case guideToneProgressions = "Guide Tone Progressions"
+}
+
 enum ToneRole: String {
     case root = "root"
     case third = "3rd"
@@ -34,6 +41,13 @@ extension ToneRole {
 
 enum PromptVisibility: String, CaseIterable, Identifiable {
     case full = "Full Tones"
+    case guideTones = "Guide Tones"
+    
+    var id: Self { self }
+}
+
+enum SequentialPreset: String, CaseIterable, Identifiable {
+    case chordTones = "Full Tones"
     case guideTones = "Guide Tones"
     
     var id: Self { self }
@@ -92,18 +106,6 @@ struct ButtonStylePalette {
 
 struct ContentView: View {
     
-    enum QuizMode: String, CaseIterable {
-        case chordToTones = "Chord → Tones"
-        case sequential = "Sequential"
-        case tonesToChord = "Tones → Chord"
-        case guideToneProgressions = "Guide Tone Progressions"
-    }
-    
-    enum SequentialPreset: String, CaseIterable {
-        case chordTones = "Full Tones"
-        case guideTones = "Guide Tones"
-    }
-    
 
     
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
@@ -144,7 +146,7 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    @State private var mode: QuizMode = .guideToneProgressions
+    @State private var mode: QuizMode = .sequential
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
@@ -672,6 +674,7 @@ struct ContentView: View {
                     Spacer()
                     
                     if mode == .sequential {
+                        /*
                         Picker("Sequential Preset", selection: $sequentialPreset) {
                             ForEach(SequentialPreset.allCases, id: \.self) {
                                 preset in
@@ -688,6 +691,7 @@ struct ContentView: View {
 
                             generateChord()
                         }
+                         */
                         
                         Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
                             .disabled(!isShuffleAvailable)
@@ -755,19 +759,28 @@ struct ContentView: View {
                     .background(Color.gray.opacity(0.2))
                     .cornerRadius(12)
                     
+                    //設定ボタン
                     Button {
                         isShowingQuizSettings = true
                     } label: {
                         Image(systemName: "gearshape")
                     }.sheet(isPresented: $isShowingQuizSettings) {
                         QuizSettingsView(
-                            promptVisibility: $promptVisibility
+                            mode: mode,
+                            promptVisibility: $promptVisibility,
+                            sequentialPreset: $sequentialPreset
                         )
                     }.onChange(of: promptVisibility) { oldValue, newValue in
                         guard oldValue != newValue else { return }
                         guard mode == .tonesToChord else { return }
                         guard !isPromptOptionDisabled else { return }
                         
+                        generateChord()
+                    }.onChange(of: sequentialPreset) { oldValue, newValue in
+                        guard oldValue != newValue else { return }
+                        guard mode == .sequential else { return }
+                        guard !isSequentialPresetDisabled else { return }
+
                         generateChord()
                     }
                     .padding()
@@ -1569,16 +1582,33 @@ struct ControlButtonsView: View {
 
 struct QuizSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    
+    let mode: QuizMode
     @Binding var promptVisibility: PromptVisibility
+    @Binding var sequentialPreset: SequentialPreset
     
 
     var body: some View {
         NavigationStack {
             Form {
-                Picker("Prompt", selection: $promptVisibility) {
-                    ForEach(PromptVisibility.allCases) { visibility in
-                        Text(visibility.rawValue)
-                            .tag(visibility)
+                if mode == .sequential {
+                    Section("Sequential") {
+                        Picker("Question Type", selection: $sequentialPreset) {
+                            ForEach(SequentialPreset.allCases, id: \.self) { preset in
+                                Text(preset.rawValue).tag(preset)
+                            }
+                        }
+                    }
+                }
+                
+                if mode == .tonesToChord {
+                    Section("Tones → Chord") {
+                        Picker("Prompt", selection: $promptVisibility) {
+                            ForEach(PromptVisibility.allCases) { visibility in
+                                Text(visibility.rawValue)
+                                    .tag(visibility)
+                            }
+                        }
                     }
                 }
             }
