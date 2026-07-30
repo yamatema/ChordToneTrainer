@@ -39,20 +39,6 @@ extension ToneRole {
     }
 }
 
-enum PromptVisibility: String, CaseIterable, Identifiable {
-    case full = "Full Tones"
-    case guideTones = "Guide Tones"
-    
-    var id: Self { self }
-}
-
-enum SequentialPreset: String, CaseIterable, Identifiable {
-    case chordTones = "Full Tones"
-    case guideTones = "Guide Tones"
-    
-    var id: Self { self }
-}
-
 //tonesToChordモード ヒント・正答表示制御
 enum RevealStep {
     case none
@@ -69,12 +55,52 @@ enum GuideToneProgressionType: String, CaseIterable {
     case secondaryTritoneSub = "Secondary Sub"
 }
 
+//tonesToChordモード 問題文表示制御
+enum PromptVisibility: String, CaseIterable, Identifiable {
+    case full = "Full Tones"
+    case guideTones = "Guide Tones"
+    
+    var id: Self { self }
+    var displayName: String {
+        switch self {
+        case .full:
+            return "コードトーンを全て表示"
+        case .guideTones:
+            return "ガイドトーンのみ表示"
+        }
+    }
+}
+
+//sequentialモード 回答数制御
+enum SequentialPreset: String, CaseIterable, Identifiable {
+    case chordTones = "Full Tones"
+    case guideTones = "Guide Tones"
+    
+    var id: Self { self }
+    var displayName: String {
+        switch self {
+        case .chordTones:
+            return "コードトーンを全て回答"
+        case .guideTones:
+            return "ガイドトーンのみ回答"
+        }
+    }
+}
+
 //音名UI ボタン並び順設定
 enum NoteButtonLayout: String, CaseIterable, Identifiable {
     case chromatic = "Chromatic"
     case randomized = "Randomized"
 
     var id: Self { self }
+    var displayName: String {
+        switch self {
+        case .chromatic:
+            return "半音順"
+        case .randomized:
+            return "ランダム"
+        }
+    }
 }
 
 struct ChordType: Equatable, Hashable {
@@ -1585,39 +1611,44 @@ struct QuizSettingsView: View {
         NavigationStack {
             Form {
                 if mode == .sequential {
-                    Section("Sequential") {
-                        Picker("Question Type", selection: $sequentialPreset) {
+                    Section (
+                        header: Text("Sequential"),
+                        footer: Text("設定を変更すると問題がリセットされます")
+                        ) {
+                        Picker("問題タイプ", selection: $sequentialPreset) {
                             ForEach(SequentialPreset.allCases, id: \.self) { preset in
-                                Text(preset.rawValue).tag(preset)
+                                Text(preset.displayName)
+                                    .tag(preset)
                             }
                         }
                         
                         Toggle(
-                            "Shuffle Answer Order",
+                            "回答順をランダムにする",
                             isOn: $shuffleEnabled
                         )
                     }
                 }
                 
                 if mode == .tonesToChord {
-                    Section("Tones → Chord") {
-                        Picker("Prompt", selection: $promptVisibility) {
-                            ForEach(PromptVisibility.allCases) { visibility in
-                                Text(visibility.rawValue)
+                    Section(
+                        header: Text("Tones → Chord"),
+                        footer: Text("設定を変更すると問題がリセットされます")
+                        ) {
+                        Picker("問題文の表示", selection: $promptVisibility) {
+                            ForEach(PromptVisibility.allCases, id: \.self) { visibility in
+                                Text(visibility.displayName)
                                     .tag(visibility)
                             }
                         }
                     }
+
                 }
                 
                 if mode != .tonesToChord {
                     Section("Answer Buttons") {
-                        Picker(
-                            "Note Button Layout",
-                            selection: $noteButtonLayout
-                        ) {
-                            ForEach(NoteButtonLayout.allCases) { layout in
-                                Text(layout.rawValue)
+                        Picker("音名ボタンの並び",selection: $noteButtonLayout) {
+                            ForEach(NoteButtonLayout.allCases, id: \.self) { layout in
+                                Text(layout.displayName)
                                     .tag(layout)
                             }
                         }
@@ -1627,7 +1658,8 @@ struct QuizSettingsView: View {
             }
             .navigationTitle("Quiz Settings")
             .toolbar {
-                ToolbarItem(placement: .bottomBar) {
+                //最終的にDoneボタンは画面下部に移動する
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         dismiss()
                     }
