@@ -210,8 +210,11 @@ struct ContentView: View {
     @State private var correctDelay: Double = 2.0
     @State private var wrongDelay: Double = 3.0
     @State private var isProcessing = false
-    //設定画面
+    //設定画面関係
     @State private var isShowingQuizSettings = false
+    @State private var sequentialPresetBeforeEditing: SequentialPreset?
+    @State private var shuffleEnabledBeforeEditing: Bool?
+    @State private var promptVisibilityBeforeEditing: PromptVisibility?
     //テストプレイ用
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
@@ -771,10 +774,20 @@ struct ContentView: View {
                     
                     //設定ボタン
                     Button {
+                        //設定画面を開く前の設定状態を保存
+                        sequentialPresetBeforeEditing = sequentialPreset
+                        shuffleEnabledBeforeEditing = shuffleEnabled
+                        promptVisibilityBeforeEditing = promptVisibility
+                        
                         isShowingQuizSettings = true
                     } label: {
                         Image(systemName: "gearshape")
-                    }.sheet(isPresented: $isShowingQuizSettings) {
+                    }.sheet(
+                        isPresented: $isShowingQuizSettings,
+                        onDismiss: {
+                            handleQuizSettingsDismiss()
+                        }
+                    ) {
                         QuizSettingsView(
                             mode: mode,
                             promptVisibility: $promptVisibility,
@@ -782,6 +795,7 @@ struct ContentView: View {
                             shuffleEnabled: $shuffleEnabled,
                             noteButtonLayout: $noteButtonLayout
                         )
+                        /*
                     }.onChange(of: promptVisibility) { oldValue, newValue in
                         guard oldValue != newValue else { return }
                         guard mode == .tonesToChord else { return }
@@ -796,6 +810,7 @@ struct ContentView: View {
                         generateChord()
                     }.onChange(of: shuffleEnabled) {
                         generateChord()
+                         */
                     }.onChange(of: noteButtonLayout) {
                         refreshNoteButtonLayout()
                     }
@@ -807,6 +822,29 @@ struct ContentView: View {
                     
                 }
             }
+        }
+    }
+    
+    //問題の再生成が必要かどうかの判断
+    private func handleQuizSettingsDismiss() {
+        let shouldRegenerate: Bool
+
+        switch mode {
+        case .sequential:
+            shouldRegenerate =
+                sequentialPreset != sequentialPresetBeforeEditing ||
+                shuffleEnabled != shuffleEnabledBeforeEditing
+
+        case .tonesToChord:
+            shouldRegenerate =
+                promptVisibility != promptVisibilityBeforeEditing
+
+        default:
+            shouldRegenerate = false
+        }
+
+        if shouldRegenerate {
+            generateChord()
         }
     }
     
