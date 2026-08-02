@@ -114,9 +114,12 @@ struct Chord: Equatable, Hashable {
 }
 
 struct GuideToneProgression {
+    /*
     let first: Chord
     let second: Chord
     let target: Chord
+     */
+    let chords: [Chord]
     let type: GuideToneProgressionType
 }
 
@@ -453,23 +456,17 @@ struct ContentView: View {
                         //問題文
                         if mode == .guideToneProgressions, let p = currentProgression {
                             HStack(spacing: 6) {
-                                Text(chordName(for: p.first))
-                                    .padding(6)
-                                    .background(isCurrentProgressionChord(0) ? Color.blue : Color.clear)
-                                    .foregroundColor(isCurrentProgressionChord(0) ? .white : .primary)
-                                    .cornerRadius(6)
-                                Text("→")
-                                Text(chordName(for: p.second))
-                                    .padding(6)
-                                    .background(isCurrentProgressionChord(1) ? Color.blue : Color.clear)
-                                    .foregroundColor(isCurrentProgressionChord(1) ? .white : .primary)
-                                    .cornerRadius(6)
-                                Text("→")
-                                Text(chordName(for: p.target))
-                                    .padding(6)
-                                    .background(isCurrentProgressionChord(2) ? Color.blue : Color.clear)
-                                    .foregroundColor(isCurrentProgressionChord(2) ? .white : .primary)
-                                    .cornerRadius(6)
+                                ForEach(Array(p.chords.enumerated()), id: \.offset) { index, chord in
+                                    if index > 0 {
+                                        Text("→")
+                                    }
+
+                                    Text(chordName(for: chord))
+                                        .padding(6)
+                                        .background(answerStep == index ? Color.blue : Color.clear)
+                                        .foregroundStyle(answerStep == index ? .white : .primary)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
                             }
                             .font(.largeTitle)
                         } else {
@@ -487,6 +484,7 @@ struct ContentView: View {
                                     .font(.largeTitle)
                             }
                         }
+                        
                         
                         // also possible...
                         if let label = otherPossibleChordLabel,
@@ -890,14 +888,18 @@ struct ContentView: View {
             let result = generateGuideToneProgression()
             
             currentProgression = result
-            progressionAnswerSteps = [
-                ProgressionAnswerStep(chord: result.first, roles: [.third, .seventh]),
-                ProgressionAnswerStep(chord: result.second, roles: [.third, .seventh]),
-                ProgressionAnswerStep(chord: result.target, roles: [.third, .seventh])
-            ]
+            progressionAnswerSteps = result.chords.map { chord in
+                ProgressionAnswerStep(
+                    chord: chord,
+                    roles: [.third, .seventh]
+                )
+            }
             
-            actualRoot = result.target.root
-            actualChordType = result.target.type
+            if let target = result.chords.last {
+                actualRoot = target.root
+                actualChordType = target.type
+            }
+            
         } else {
             currentProgression = nil
         }
@@ -1259,9 +1261,12 @@ struct ContentView: View {
         }
         
         return GuideToneProgression(
+            /*
             first: first,
             second: second,
             target: target,
+             */
+            chords: [first, second, target],
             type: progressionType
         )
     }
