@@ -53,6 +53,7 @@ enum GuideToneProgressionType: String, CaseIterable {
     case backdoor = "Backdoor"
     case secondary = "Secondary ii-V"
     case secondaryTritoneSub = "Secondary Sub"
+    case chainIIV = "Chain ii-V"
 }
 
 //tonesToChordモード 問題文表示制御
@@ -114,11 +115,6 @@ struct Chord: Equatable, Hashable {
 }
 
 struct GuideToneProgression {
-    /*
-    let first: Chord
-    let second: Chord
-    let target: Chord
-     */
     let chords: [Chord]
     let type: GuideToneProgressionType
 }
@@ -134,8 +130,6 @@ struct ButtonStylePalette {
 }
 
 struct ContentView: View {
-    
-
     
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
     //回答UI 異名同音表記対応用
@@ -175,13 +169,13 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    @State private var mode: QuizMode = .sequential
+    @State private var mode: QuizMode = .guideToneProgressions
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
     //音名UI ボタンの並び関連
     @State private var noteButtons: [String] = []
-    @State private var noteButtonLayout: NoteButtonLayout = .randomized
+    @State private var noteButtonLayout: NoteButtonLayout = .chromatic
     //コードトーン（表示用）
     @State private var chordTones: [String] = []
     @State private var currentChord: String = "ChordTones"
@@ -455,6 +449,32 @@ struct ContentView: View {
                     VStack{
                         //問題文
                         if mode == .guideToneProgressions, let p = currentProgression {
+                            let columns = [
+                                GridItem(.adaptive(minimum: 72), spacing: 6),
+                            ]
+                            
+                            LazyVGrid(columns: columns, spacing: 6) {
+                                ForEach(Array(p.chords.enumerated()), id:\.offset) { index, chord in
+                                    Text(chordName(for: chord))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 6)
+                                        .frame(maxWidth: .infinity)
+                                        .background(
+                                            answerStep == index
+                                                ? Color.blue
+                                                : Color.clear
+                                        )
+                                        .foregroundStyle(
+                                            answerStep == index
+                                                ? .white
+                                                : .primary
+                                        )
+                                        .clipShape(
+                                            RoundedRectangle(cornerRadius: 6)
+                                        ).font(.title2)
+                                }
+                            }
+                            /*
                             HStack(spacing: 6) {
                                 ForEach(Array(p.chords.enumerated()), id: \.offset) { index, chord in
                                     if index > 0 {
@@ -469,6 +489,7 @@ struct ContentView: View {
                                 }
                             }
                             .font(.largeTitle)
+                             */
                         } else {
                             if mode == .tonesToChord {
                                 Text(visiblePromptTones.joined(separator: ", ") + " → ?")
@@ -700,31 +721,6 @@ struct ContentView: View {
                 VStack {
                     Spacer()
                     
-                    if mode == .sequential {
-                        /*
-                        Picker("Sequential Preset", selection: $sequentialPreset) {
-                            ForEach(SequentialPreset.allCases, id: \.self) {
-                                preset in
-                                Text(preset.rawValue).tag(preset)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .disabled(isSequentialPresetDisabled)
-                        .opacity(!isSequentialPresetDisabled ? 1.0 : 0.3)
-                        .onChange(of: sequentialPreset) { oldValue, newValue in
-                            guard oldValue != newValue else { return }
-                            guard mode == .sequential else { return }
-                            guard !isSequentialPresetDisabled else { return }
-
-                            generateChord()
-                        }
-                        
-                        Toggle("Shuffle Answer Order", isOn: $shuffleEnabled)
-                            .disabled(!isShuffleAvailable)
-                            .opacity(isShuffleAvailable ? 1.0 : 0.3)
-                        */
-                    }
-                    
                     if mode == .tonesToChord {
 
                         TestControlsView(
@@ -793,22 +789,6 @@ struct ContentView: View {
                             shuffleEnabled: $shuffleEnabled,
                             noteButtonLayout: $noteButtonLayout
                         )
-                        /*
-                    }.onChange(of: promptVisibility) { oldValue, newValue in
-                        guard oldValue != newValue else { return }
-                        guard mode == .tonesToChord else { return }
-                        guard !isPromptOptionDisabled else { return }
-                        
-                        generateChord()
-                    }.onChange(of: sequentialPreset) { oldValue, newValue in
-                        guard oldValue != newValue else { return }
-                        guard mode == .sequential else { return }
-                        guard !isSequentialPresetDisabled else { return }
-
-                        generateChord()
-                    }.onChange(of: shuffleEnabled) {
-                        generateChord()
-                         */
                     }.onChange(of: noteButtonLayout) {
                         refreshNoteButtonLayout()
                     }
@@ -1213,13 +1193,15 @@ struct ContentView: View {
         let major7 = chordTypes.first { $0.name == "M7" }!
         
         //進行タイプの決定
-        let progressionType = GuideToneProgressionType.allCases.randomElement()!
+        //let progressionType = GuideToneProgressionType.allCases.randomElement()!
+        let progressionType: GuideToneProgressionType = .chainIIV
         
         let first: Chord
         let second: Chord
         let target: Chord
         
         switch progressionType {
+            
             case .major:
             first = Chord(root: notes[iiIndex], type: minor7)
             second = Chord(root: notes[normalVIndex], type: dominant7)
@@ -1231,41 +1213,52 @@ struct ContentView: View {
             target = Chord(root: root, type: minor7)
 
             case .tritoneSub:
-                let tritoneSubVIndex = (rootIndex + 1) % 12 // subV
-            
+            let tritoneSubVIndex = (rootIndex + 1) % 12 // subV
+        
             first = Chord(root: notes[iiIndex], type: minor7)
             second = Chord(root: notes[tritoneSubVIndex], type: dominant7)
             target = Chord(root: root, type: major7)
             
             case .backdoor:
-                let backdoorIiIndex = (rootIndex + 5) % 12  // P4
-                let backdoorVIndex = (rootIndex + 10) % 12  // m7
-            
+            let backdoorIiIndex = (rootIndex + 5) % 12  // P4
+            let backdoorVIndex = (rootIndex + 10) % 12  // m7
+        
             first = Chord(root: notes[backdoorIiIndex], type: minor7)
             second = Chord(root: notes[backdoorVIndex], type: dominant7)
             target = Chord(root: root, type: major7)
             
             case .secondary:
-                let secondaryVIndex = (targetIndex + 7) % 12    // V of V
+            let secondaryVIndex = (targetIndex + 7) % 12    // V of V
 
             first = Chord(root: notes[secondaryIiIndex], type: minor7)
             second = Chord(root: notes[secondaryVIndex], type: dominant7)
             target = Chord(root: notes[targetIndex], type: dominant7)
             
             case .secondaryTritoneSub:
-                let secondarySubVIndex = (targetIndex + 1) % 12 //subV of V
+            let secondarySubVIndex = (targetIndex + 1) % 12 //subV of V
 
             first = Chord(root: notes[secondaryIiIndex], type: minor7)
             second = Chord(root: notes[secondarySubVIndex], type: dominant7)
             target = Chord(root: notes[targetIndex], type: dominant7)
+            
+            case .chainIIV:
+            let chords = [
+                Chord(root: "F♯", type: minor7),
+                Chord(root: "B", type: dominant7),
+                Chord(root: "E", type: minor7),
+                Chord(root: "A", type: dominant7),
+                Chord(root: "D", type: minor7),
+                Chord(root: "G", type: dominant7),
+                Chord(root: "C", type: major7)
+            ]
+
+            return GuideToneProgression(
+                chords: chords,
+                type: .chainIIV
+            )
         }
         
         return GuideToneProgression(
-            /*
-            first: first,
-            second: second,
-            target: target,
-             */
             chords: [first, second, target],
             type: progressionType
         )
