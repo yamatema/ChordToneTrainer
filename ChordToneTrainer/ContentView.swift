@@ -47,15 +47,39 @@ enum RevealStep {
 }
 
 enum GuideToneProgressionType: String, CaseIterable {
-    case major = "Major ii-V"
-    case minor = "Minor ii-V"
-    case tritoneSub = "Tritone Sub"
-    case backdoor = "Backdoor"
-    case secondary = "Secondary ii-V"
-    case secondaryTritoneSub = "Secondary Sub"
-    case chainIIV = "Chain ii-V"
-}
+    case major
+    case minor
+    case tritoneSub
+    case backdoor
+    case secondary
+    case secondaryTritoneSub
+    case chainIIV
 
+    var displayName: String {
+        switch self {
+        case .major:
+            return "Major: iim7–V7–IM7"
+
+        case .minor:
+            return "Minor: iiø–V7–im7"
+
+        case .tritoneSub:
+            return "Tritone Substitution: iim7–subV7–IM7"
+
+        case .backdoor:
+            return "Backdoor ii-V: ivm7–♭VII7–IM7"
+
+        case .secondary:
+            return "Secondary Dominant: (iim7-V7 of V)-V7"
+
+        case .secondaryTritoneSub:
+            return "Secondary Dominant: (iim7-subV7 of V)-V7"
+
+        case .chainIIV:
+            return "Chained ii–V: (iim7-V7 of II)-iim7-V7-IM7"
+        }
+    }
+}
 //tonesToChordモード 問題文表示制御
 enum PromptVisibility: String, CaseIterable, Identifiable {
     case full = "Full Tones"
@@ -130,7 +154,6 @@ struct ButtonStylePalette {
 }
 
 struct ContentView: View {
-    
     let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
     //回答UI 異名同音表記対応用
     let defaultNoteButtons = ["C","C♯/D♭","D","D♯/E♭","E","F","F♯/G♭","G","G♯/A♭","A","A♯/B♭","B"]
@@ -364,6 +387,14 @@ struct ContentView: View {
         mode != .tonesToChord || isProcessing || revealStep != .none || showingAnswer
     }
     
+    var isGuideToneProgressionFinished: Bool {
+        guard let progression = currentProgression else {
+            return false
+        }
+        
+        return answerStep == progression.chords.count - 1 && showingAnswer
+    }
+    
     var shouldShowTheoryFeedback: Bool {
         mode == .tonesToChord
         && (showingAnswer || answerChecked || revealStep == .answer)
@@ -492,23 +523,37 @@ struct ContentView: View {
                         }
                         
                         
-                        // also possible...
-                        if let label = otherPossibleChordLabel,
+                        // 補足表示
+                        // tonesToChord なら 他の可能なコード,
+                        // guideToneProgression なら 進行タイプ
+                        if mode == . tonesToChord,
+                           let label = otherPossibleChordLabel,
                            lastAnswerWasCorrect != false {
-                            Text(label)
-                                .font(.title2)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
+                                Text(label)
+                                    .font(.title2)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            
+                        } else if mode == .guideToneProgressions,
+                                  isGuideToneProgressionFinished,
+                                  let progression = currentProgression {
+                                Text(progression.type.displayName)
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            
                         }
                         
                         
                         //どれを答えるかの表示
                         if mode == .guideToneProgressions,
                            answerStep < progressionAnswerSteps.count {
-                            Text("3rd & 7th ?")
-                                .font(.title2)
-
+                            if !showingAnswer{
+                                Text("3rd & 7th ?")
+                                    .font(.title2)
+                            }
                         } else if answerStep < answerOrder.count {
                             Text("\(roleLabel(answerOrder[answerStep])) ?")
                                 .font(.title2)
