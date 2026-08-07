@@ -192,7 +192,7 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    @State private var mode: QuizMode = .guideToneProgressions
+    @State private var mode: QuizMode = .chordToTones
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
@@ -235,6 +235,11 @@ struct ContentView: View {
     @State private var sequentialPresetBeforeEditing: SequentialPreset?
     @State private var shuffleEnabledBeforeEditing: Bool?
     @State private var promptVisibilityBeforeEditing: PromptVisibility?
+    //セッション（小テスト）モード関連
+    @State private var isSessionActive = false
+    @State private var sessionQuestionLimit = 10
+    @State private var completedQuestionCount = 0
+    @State private var correctQuestionCount = 0
     //テストプレイ用
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
@@ -746,8 +751,6 @@ struct ContentView: View {
                 
                 
 
-                
-                //各種切り替えpicker/toggle
                 VStack {
                     Spacer()
                     
@@ -761,10 +764,30 @@ struct ContentView: View {
                         
                     }
                     
+                    //セッションボタン
+                    if isSessionActive {
+                        Text("\(completedQuestionCount + 1) / \(sessionQuestionLimit)")
+                            .padding()
+                            .frame(maxWidth: 160)
+                            .background(Color.yellow.opacity(0.8))
+                            .foregroundColor(.black)
+                            .cornerRadius(12)
+                        
+                    } else {
+                        Button("Start Session") {
+                            startSession()
+                        }
+                        .padding()
+                        .disabled(isProcessing || showingAnswer)
+                        .frame(maxWidth: 160)
+                        .background(Color.yellow.opacity(0.8))
+                        .foregroundColor(.black)
+                        .cornerRadius(12)
+                    }
+
+                    
                 }
                 .padding(.horizontal, 40)
-                
-                .padding(.bottom, 20)
                 
                 HStack {
                     //モード切り替え
@@ -791,7 +814,9 @@ struct ContentView: View {
                         
                     }
                     .padding()
-                    .disabled(isProcessing || showingAnswer)
+                    .disabled(isProcessing || showingAnswer
+                              // || isSessionActive
+                    )
                     .frame(maxWidth: 160)
                     .background(Color.gray.opacity(0.2))
                     .cornerRadius(12)
@@ -828,9 +853,19 @@ struct ContentView: View {
                     .background(Color.gray.opacity(0.2))
                     .cornerRadius(12)
                     
+                    
                 }
             }
         }
+    }
+    
+    
+    private func startSession() {
+        completedQuestionCount = 0
+        correctQuestionCount = 0
+        isSessionActive = true
+
+        generateChord()
     }
     
     //問題の再生成が必要かどうかの判断
