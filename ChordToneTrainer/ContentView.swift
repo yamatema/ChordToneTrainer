@@ -237,6 +237,7 @@ struct ContentView: View {
     @State private var promptVisibilityBeforeEditing: PromptVisibility?
     //セッション（小テスト）モード関連
     @State private var isSessionActive = false
+    @State private var isSessionFinished = false
     @State private var sessionQuestionLimit = 10
     @State private var completedQuestionCount = 0
     @State private var correctQuestionCount = 0
@@ -404,6 +405,7 @@ struct ContentView: View {
         mode == .tonesToChord
         && (showingAnswer || answerChecked || revealStep == .answer)
     }
+    
     
     // also possible...
     var otherPossibleChordLabel: String? {
@@ -773,6 +775,8 @@ struct ContentView: View {
                             .foregroundColor(.black)
                             .cornerRadius(12)
                         
+                    } else if isSessionFinished {
+                        Text("Session Finished")
                     } else {
                         Button("Start Session") {
                             startSession()
@@ -860,13 +864,7 @@ struct ContentView: View {
     }
     
     
-    private func startSession() {
-        completedQuestionCount = 0
-        correctQuestionCount = 0
-        isSessionActive = true
 
-        generateChord()
-    }
     
     //問題の再生成が必要かどうかの判断
     private func handleQuizSettingsDismiss() {
@@ -1572,15 +1570,32 @@ struct ContentView: View {
         }
     }
     
+    private func startSession() {
+        completedQuestionCount = 0
+        correctQuestionCount = 0
+        isSessionActive = true
+
+        generateChord()
+    }
+    
     //セッション時用問題終了処理
     private func completeCurrentQuestion() {
         if isSessionActive {
             completedQuestionCount += 1
+            
+            if completedQuestionCount >= sessionQuestionLimit {
+                endSession()
+                return
+            }
         }
 
         generateChord()
     }
     
+    private func endSession() {
+        isSessionActive = false
+        isSessionFinished = true
+    }
     
     func pitchClasses(from tones: [(note: String, role: ToneRole)]) -> [Int] {
         tones.compactMap {
