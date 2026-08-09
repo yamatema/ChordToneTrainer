@@ -713,7 +713,7 @@ struct ContentView: View {
                                     showingAnswer = false
                                     revealStep = .none
                                 } else {
-                                    generateChord()
+                                    completeCurrentQuestion()
                                 }
                             } else {
                                 showingAnswer = true
@@ -730,11 +730,11 @@ struct ContentView: View {
                                 showingAnswer = true
                             case .answer:
                                 selectedChord = nil
-                                generateChord()
+                                completeCurrentQuestion()
                             }
                         } else {
                             if showingAnswer {
-                                generateChord()
+                                completeCurrentQuestion()
                             } else {
                                 showingAnswer = true
                             }
@@ -1539,7 +1539,7 @@ struct ContentView: View {
             
             if mode == .tonesToChord {
                 selectedChord = nil
-                generateChord()
+                completeCurrentQuestion()
                 return
             }
             
@@ -1553,7 +1553,7 @@ struct ContentView: View {
                     showingAnswer = false
                     revealStep = .none
                 } else {
-                    generateChord()
+                    completeCurrentQuestion()
                 }
             return
             }
@@ -1567,9 +1567,18 @@ struct ContentView: View {
                 showingAnswer = false
                 revealStep = .none
             } else {
-                generateChord()
+                completeCurrentQuestion()
             }
         }
+    }
+    
+    //セッション時用問題終了処理
+    private func completeCurrentQuestion() {
+        if isSessionActive {
+            completedQuestionCount += 1
+        }
+
+        generateChord()
     }
     
     
