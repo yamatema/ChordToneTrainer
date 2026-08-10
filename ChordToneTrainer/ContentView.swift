@@ -238,9 +238,11 @@ struct ContentView: View {
     //セッション（小テスト）モード関連
     @State private var isSessionActive = false
     @State private var isSessionFinished = false
-    @State private var sessionQuestionLimit = 10
+    @State private var sessionQuestionLimit = 3
     @State private var completedQuestionCount = 0
     @State private var correctQuestionCount = 0
+    @State private var currentQuestionHadMistake = false
+    @State private var currentQuestionUsedShow = false
     //テストプレイ用
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
@@ -705,6 +707,8 @@ struct ContentView: View {
                     isProcessing: isProcessing,
                     isCheckDisabled: isCheckDisabled,
                     onShowTapped: {
+                        currentQuestionUsedShow = true
+                        
                         if mode == .guideToneProgressions {
                             if showingAnswer {
                                 if answerStep < progressionAnswerSteps.count - 1 {
@@ -745,6 +749,9 @@ struct ContentView: View {
                     onCheckTapped: {
                         let isCorrect = checkAnswer()
                         lastAnswerWasCorrect = isCorrect
+                        if !isCorrect {
+                            currentQuestionHadMistake = true
+                        }
                         answerChecked = true
                         updateShowingAnswer(isCorrect: isCorrect)
                         proceedAfterAnswer(isCorrect: isCorrect)
@@ -770,22 +777,37 @@ struct ContentView: View {
                     if isSessionActive {
                         Text("\(completedQuestionCount + 1) / \(sessionQuestionLimit)")
                             .padding()
-                            .frame(maxWidth: 160)
+                            .frame(maxWidth: 230)
                             .background(Color.yellow.opacity(0.8))
                             .foregroundColor(.black)
                             .cornerRadius(12)
                         
                     } else if isSessionFinished {
-                        Text("Session Finished")
+                        var sessionAccuracy: Double {
+                            guard sessionQuestionLimit > 0 else { return 0 }
+                            return Double(correctQuestionCount) / Double(sessionQuestionLimit) * 100
+                        }
+                        
+                        VStack{
+                            Text("Session Finished")
+                            Text("\(correctQuestionCount) / \(sessionQuestionLimit)")
+                            Text("正答率 \(sessionAccuracy, specifier: "%.0f")%")
+                        }
+                            .multilineTextAlignment(.center)
+                            .padding()
+                            .frame(maxWidth: 230)
+                            .background(Color.green.opacity(0.6))
+                            .foregroundColor(.black)
+                            .cornerRadius(12)
+                        
                     } else {
                         Button("Start Session") {
                             startSession()
                         }
                         .padding()
                         .disabled(isProcessing || showingAnswer)
-                        .frame(maxWidth: 160)
-                        .background(Color.yellow.opacity(0.8))
-                        .foregroundColor(.black)
+                        .frame(maxWidth: 230)
+                        .background(Color.gray.opacity(0.2))
                         .cornerRadius(12)
                     }
 
@@ -911,6 +933,10 @@ struct ContentView: View {
         revealStep = .none
         showingAnswer = false
         currentProgression = nil
+        
+        currentQuestionHadMistake = false
+        currentQuestionUsedShow = false
+        
         
         let rootIndex = forceRootCForTest
             ? 0
@@ -1570,24 +1596,32 @@ struct ContentView: View {
         }
     }
     
-    private func startSession() {
-        completedQuestionCount = 0
-        correctQuestionCount = 0
-        isSessionActive = true
-
-        generateChord()
-    }
-    
     //セッション時用問題終了処理
     private func completeCurrentQuestion() {
         if isSessionActive {
             completedQuestionCount += 1
+            
+            let wasCorrect =
+                !currentQuestionHadMistake &&
+                !currentQuestionUsedShow
+            
+            if wasCorrect {
+                correctQuestionCount += 1
+            }
             
             if completedQuestionCount >= sessionQuestionLimit {
                 endSession()
                 return
             }
         }
+
+        generateChord()
+    }
+    
+    private func startSession() {
+        completedQuestionCount = 0
+        correctQuestionCount = 0
+        isSessionActive = true
 
         generateChord()
     }
