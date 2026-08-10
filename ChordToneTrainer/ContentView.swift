@@ -238,7 +238,7 @@ struct ContentView: View {
     //セッション（小テスト）モード関連
     @State private var isSessionActive = false
     @State private var isSessionFinished = false
-    @State private var sessionQuestionLimit = 3
+    @State private var sessionQuestionLimit = 2
     @State private var completedQuestionCount = 0
     @State private var correctQuestionCount = 0
     @State private var currentQuestionHadMistake = false
@@ -381,6 +381,10 @@ struct ContentView: View {
     
     var isShuffleAvailable: Bool {
         mode == .sequential || mode == .guideToneProgressions
+    }
+    
+    var isShowDisabled: Bool {
+        isProcessing || isSessionFinished
     }
     
     var isCheckDisabled: Bool {
@@ -704,7 +708,7 @@ struct ContentView: View {
 
                 ControlButtonsView(
                     showButtonLabel: showButtonLabel,
-                    isProcessing: isProcessing,
+                    isShowDisabled: isShowDisabled,
                     isCheckDisabled: isCheckDisabled,
                     onShowTapped: {
                         currentQuestionUsedShow = true
@@ -788,17 +792,35 @@ struct ContentView: View {
                             return Double(correctQuestionCount) / Double(sessionQuestionLimit) * 100
                         }
                         
-                        VStack{
+                        VStack {
                             Text("Session Finished")
                             Text("\(correctQuestionCount) / \(sessionQuestionLimit)")
                             Text("正答率 \(sessionAccuracy, specifier: "%.0f")%")
+                            
+                            HStack{
+                                Button("Restart") {
+                                    startSession()
+                                }
+                                .padding()
+                                .background(Color.green.opacity(0.8))
+                                .foregroundColor(.black)
+                                .cornerRadius(12)
+                                
+                                Button("Quit") {
+                                    quitSession()
+                                }
+                                .padding()
+                                .background(Color.red.opacity(0.8))
+                                .foregroundColor(.black)
+                                .cornerRadius(12)
+                            }
                         }
-                            .multilineTextAlignment(.center)
-                            .padding()
-                            .frame(maxWidth: 230)
-                            .background(Color.green.opacity(0.6))
-                            .foregroundColor(.black)
-                            .cornerRadius(12)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .frame(maxWidth: 230)
+                        .background(Color.green.opacity(0.6))
+                        .foregroundColor(.black)
+                        .cornerRadius(12)
                         
                     } else {
                         Button("Start Session") {
@@ -840,12 +862,14 @@ struct ContentView: View {
                         
                     }
                     .padding()
-                    .disabled(isProcessing || showingAnswer
-                              // || isSessionActive
+                    .disabled(isProcessing
+                              || showingAnswer
+                              || isSessionActive
                     )
                     .frame(maxWidth: 160)
                     .background(Color.gray.opacity(0.2))
                     .cornerRadius(12)
+                    
                     
                     //設定ボタン
                     Button {
@@ -1619,16 +1643,31 @@ struct ContentView: View {
     }
     
     private func startSession() {
-        completedQuestionCount = 0
-        correctQuestionCount = 0
+        resetSession()
+        
         isSessionActive = true
-
         generateChord()
     }
     
     private func endSession() {
         isSessionActive = false
         isSessionFinished = true
+    }
+    
+    private func resetSession() {
+        completedQuestionCount = 0
+        correctQuestionCount = 0
+
+        currentQuestionHadMistake = false
+        currentQuestionUsedShow = false
+
+        isSessionActive = false
+        isSessionFinished = false
+    }
+    
+    private func quitSession() {
+        resetSession()
+        generateChord()
     }
     
     func pitchClasses(from tones: [(note: String, role: ToneRole)]) -> [Int] {
@@ -1712,7 +1751,7 @@ struct AnswerButtonLabel: View {
 
 struct ControlButtonsView: View {
     let showButtonLabel: String
-    let isProcessing: Bool
+    let isShowDisabled: Bool
     let isCheckDisabled: Bool
     let onShowTapped: () -> Void
     let onCheckTapped: () -> Void
@@ -1732,8 +1771,9 @@ struct ControlButtonsView: View {
                     .cornerRadius(12)
             }
             .padding()
-            .disabled(isProcessing)
-            .opacity(isProcessing ? 0.5 : 1.0)
+            .disabled(isShowDisabled
+            )
+            .opacity(isShowDisabled ? 0.5 : 1.0)
 
             Button(action: {
                 onCheckTapped()
