@@ -238,11 +238,13 @@ struct ContentView: View {
     //セッション（小テスト）モード関連
     @State private var isSessionActive = false
     @State private var isSessionFinished = false
-    @State private var sessionQuestionLimit = 10
+    @State private var sessionQuestionLimit = 7
     @State private var completedQuestionCount = 0
     @State private var correctQuestionCount = 0
     @State private var currentQuestionHadMistake = false
     @State private var currentQuestionUsedShow = false
+    @State private var questionStartTime: Date?
+    @State private var totalAnswerTime: TimeInterval = 0
     //テストプレイ用
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
@@ -765,16 +767,13 @@ struct ContentView: View {
                 
 
                 VStack {
-                    Spacer()
                     
                     if mode == .tonesToChord {
-
                         TestControlsView(
                             isExpanded: $isTestControlsExpanded,
                             forceRootCForTest: $forceRootCForTest,
                             forceDominant7ForTest: $forceDominant7ForTest
                         )
-                        
                     }
                     
                     //セッションボタン
@@ -802,10 +801,19 @@ struct ContentView: View {
                             return Double(correctQuestionCount) / Double(sessionQuestionLimit) * 100
                         }
                         
+                        var averageAnswerTime: TimeInterval {
+                            guard completedQuestionCount > 0 else { return 0 }
+                            
+                            return totalAnswerTime / Double(completedQuestionCount)
+                        }
+                        
                         VStack {
                             Text("Session Finished")
-                            Text("\(correctQuestionCount) / \(sessionQuestionLimit)")
+                                .fontWeight(.heavy)
+                                .fontDesign(.serif)
+                            Text("\(sessionQuestionLimit) 問中 \(correctQuestionCount) 問正解")
                             Text("正答率 \(sessionAccuracy, specifier: "%.0f")%")
+                            Text("平均回答時間 \(averageAnswerTime, specifier: "%.1f")秒")
                             
                             HStack{
                                 Button("Restart") {
@@ -1071,10 +1079,14 @@ struct ContentView: View {
             
         }
         
+        
         if shuffleEnabled {
             answerOrder.shuffle()
         }
         
+        if isSessionActive {
+            questionStartTime = Date()
+        }
 
         
     }
@@ -1634,6 +1646,10 @@ struct ContentView: View {
     //セッション時用問題終了処理
     private func completeCurrentQuestion() {
         if isSessionActive {
+            if let questionStartTime {
+                totalAnswerTime += Date().timeIntervalSince(questionStartTime)
+            }
+            
             completedQuestionCount += 1
             
             let wasCorrect =
@@ -1671,6 +1687,9 @@ struct ContentView: View {
 
         currentQuestionHadMistake = false
         currentQuestionUsedShow = false
+        
+        totalAnswerTime = 0
+        questionStartTime = nil
 
         isSessionActive = false
         isSessionFinished = false
