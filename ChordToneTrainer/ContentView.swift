@@ -238,7 +238,7 @@ struct ContentView: View {
     //セッション（小テスト）モード関連
     @State private var isSessionActive = false
     @State private var isSessionFinished = false
-    @State private var sessionQuestionLimit = 2
+    @State private var sessionQuestionLimit = 10
     @State private var completedQuestionCount = 0
     @State private var correctQuestionCount = 0
     @State private var currentQuestionHadMistake = false
@@ -779,13 +779,23 @@ struct ContentView: View {
                     
                     //セッションボタン
                     if isSessionActive {
-                        Text("\(completedQuestionCount + 1) / \(sessionQuestionLimit)")
-                            .padding()
-                            .frame(maxWidth: 230)
-                            .background(Color.yellow.opacity(0.8))
-                            .foregroundColor(.black)
-                            .cornerRadius(12)
-                        
+                        HStack {
+                            Text("\(completedQuestionCount + 1) / \(sessionQuestionLimit)")
+                                .padding()
+                                .frame(maxWidth: 180)
+                                .background(Color.yellow.opacity(0.8))
+                                .foregroundColor(.black)
+                                .cornerRadius(12)
+                            
+                            Button("Quit") {
+                                quitSession()
+                            }
+                                .padding()
+                                .frame(maxWidth: 80)
+                                .background(Color.red.opacity(0.8))
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
                     } else if isSessionFinished {
                         var sessionAccuracy: Double {
                             guard sessionQuestionLimit > 0 else { return 0 }
@@ -828,7 +838,7 @@ struct ContentView: View {
                         }
                         .padding()
                         .disabled(isProcessing || showingAnswer)
-                        .frame(maxWidth: 230)
+                        .frame(maxWidth: 200)
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(12)
                     }
@@ -866,7 +876,7 @@ struct ContentView: View {
                               || showingAnswer
                               || isSessionActive
                     )
-                    .frame(maxWidth: 160)
+                    .frame(maxWidth: 180)
                     .background(Color.gray.opacity(0.2))
                     .cornerRadius(12)
                     
@@ -889,6 +899,7 @@ struct ContentView: View {
                     ) {
                         QuizSettingsView(
                             mode: mode,
+                            isSessionActive: isSessionActive,
                             promptVisibility: $promptVisibility,
                             sequentialPreset: $sequentialPreset,
                             shuffleEnabled: $shuffleEnabled,
@@ -899,7 +910,7 @@ struct ContentView: View {
                     }
                     .padding()
                     .disabled(isProcessing || showingAnswer)
-                    .frame(maxWidth: 60)
+                    .frame(maxWidth: 80)
                     .background(Color.gray.opacity(0.2))
                     .cornerRadius(12)
                     
@@ -1798,6 +1809,7 @@ struct QuizSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     let mode: QuizMode
+    let isSessionActive: Bool
     @Binding var promptVisibility: PromptVisibility
     @Binding var sequentialPreset: SequentialPreset
     @Binding var shuffleEnabled: Bool
@@ -1811,33 +1823,57 @@ struct QuizSettingsView: View {
                 if mode == .sequential {
                     Section (
                         header: Text("Sequential"),
-                        footer: Text("設定を変更すると問題がリセットされます")
-                        ) {
+                        footer: VStack(alignment: .leading, spacing: 4) {
+                            Text("設定を変更すると問題がリセットされます。")
+                                .opacity(isSessionActive ? 0.3 : 1.0)
+                            Text("！セッションモード中は設定を変更できません。")
+                                .foregroundStyle(isSessionActive ? .red : .secondary)
+                                .fontWeight(isSessionActive ? .bold : .regular)
+                            
+                        }
+                    ) {
                         Picker("問題タイプ", selection: $sequentialPreset) {
                             ForEach(SequentialPreset.allCases, id: \.self) { preset in
                                 Text(preset.displayName)
                                     .tag(preset)
                             }
                         }
+                        .disabled(isSessionActive)
+                        .opacity(isSessionActive ? 0.3 : 1.0)
                         
                         Toggle(
                             "回答順をランダムにする",
                             isOn: $shuffleEnabled
                         )
+                        .disabled(isSessionActive)
+                        .opacity(isSessionActive ? 0.3 : 1.0)
+                        
                     }
+                        
                 }
                 
                 if mode == .tonesToChord {
                     Section(
                         header: Text("Tones → Chord"),
-                        footer: Text("設定を変更すると問題がリセットされます")
-                        ) {
+                        footer: VStack(alignment: .leading, spacing: 4) {
+                            Text("設定を変更すると問題がリセットされます。")
+                                .opacity(isSessionActive ? 0.3 : 1.0)
+                            Text("！セッションモード中は設定を変更できません。")
+                                .foregroundStyle(isSessionActive ? .red : .secondary)
+                                .fontWeight(isSessionActive ? .bold : .regular)
+                            
+                        }
+                    ) {
                         Picker("問題文の表示", selection: $promptVisibility) {
                             ForEach(PromptVisibility.allCases, id: \.self) { visibility in
                                 Text(visibility.displayName)
                                     .tag(visibility)
                             }
                         }
+                        .disabled(isSessionActive)
+                        .opacity(isSessionActive ? 0.3 : 1.0)
+                        
+                            
                     }
 
                 }
@@ -1856,7 +1892,7 @@ struct QuizSettingsView: View {
             }
             .navigationTitle("Quiz Settings")
             .toolbar {
-                //最終的にDoneボタンは画面下部に移動する
+                //最終的にDoneボタンは画面下部に移動するけどとりあえず右上
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         dismiss()
