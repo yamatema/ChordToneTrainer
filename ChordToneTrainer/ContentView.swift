@@ -414,6 +414,16 @@ struct ContentView: View {
         && (showingAnswer || answerChecked || revealStep == .answer)
     }
     
+    var sessionAccuracy: Double {
+        guard sessionQuestionLimit > 0 else { return 0 }
+        return Double(correctQuestionCount) / Double(sessionQuestionLimit) * 100
+    }
+    
+    var averageAnswerTime: TimeInterval {
+        guard completedQuestionCount > 0 else { return 0 }
+        
+        return totalAnswerTime / Double(completedQuestionCount)
+    }
     
     // also possible...
     var otherPossibleChordLabel: String? {
@@ -795,50 +805,16 @@ struct ContentView: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(12)
                         }
+                        
                     } else if isSessionFinished {
-                        var sessionAccuracy: Double {
-                            guard sessionQuestionLimit > 0 else { return 0 }
-                            return Double(correctQuestionCount) / Double(sessionQuestionLimit) * 100
-                        }
-                        
-                        var averageAnswerTime: TimeInterval {
-                            guard completedQuestionCount > 0 else { return 0 }
-                            
-                            return totalAnswerTime / Double(completedQuestionCount)
-                        }
-                        
-                        VStack {
-                            Text("Session Finished")
-                                .fontWeight(.heavy)
-                                .fontDesign(.serif)
-                            Text("\(sessionQuestionLimit) 問中 \(correctQuestionCount) 問正解")
-                            Text("正答率 \(sessionAccuracy, specifier: "%.0f")%")
-                            Text("平均回答時間 \(averageAnswerTime, specifier: "%.1f")秒")
-                            
-                            HStack{
-                                Button("Restart") {
-                                    startSession()
-                                }
-                                .padding()
-                                .background(Color.green.opacity(0.8))
-                                .foregroundColor(.black)
-                                .cornerRadius(12)
-                                
-                                Button("Quit") {
-                                    quitSession()
-                                }
-                                .padding()
-                                .background(Color.red.opacity(0.8))
-                                .foregroundColor(.black)
-                                .cornerRadius(12)
-                            }
-                        }
-                        .multilineTextAlignment(.center)
-                        .padding()
-                        .frame(maxWidth: 230)
-                        .background(Color.green.opacity(0.6))
-                        .foregroundColor(.black)
-                        .cornerRadius(12)
+                        SessionResultView(
+                            correctCount: correctQuestionCount,
+                            totalCount: sessionQuestionLimit,
+                            accuracy: sessionAccuracy,
+                            averageTime: averageAnswerTime,
+                            onRestart: startSession,
+                            onQuit: quitSession
+                        )
                         
                     } else {
                         Button("Start Session") {
@@ -849,9 +825,9 @@ struct ContentView: View {
                         .frame(maxWidth: 200)
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(12)
+                        
                     }
 
-                    
                 }
                 .padding(.horizontal, 40)
                 
@@ -1920,6 +1896,52 @@ struct QuizSettingsView: View {
             }
         }
     }
+}
+
+struct SessionResultView : View {
+    let correctCount: Int
+    let totalCount: Int
+    let accuracy: Double
+    let averageTime: TimeInterval
+    
+    let onRestart: () -> Void
+    let onQuit: () -> Void
+    
+    var body: some View {
+        VStack {
+            Text("Session Finished")
+                .fontWeight(.heavy)
+                .fontDesign(.serif)
+            Text("\(totalCount) 問中 \(correctCount) 問正解")
+            Text("正答率 \(accuracy, specifier: "%.0f")%")
+            Text("平均回答時間 \(averageTime, specifier: "%.1f")秒")
+            
+            HStack{
+                Button("Restart") {
+                    onRestart()
+                }
+                .padding()
+                .background(Color.green.opacity(0.8))
+                .foregroundColor(.black)
+                .cornerRadius(12)
+                
+                Button("Quit") {
+                    onQuit()
+                }
+                .padding()
+                .background(Color.red.opacity(0.8))
+                .foregroundColor(.black)
+                .cornerRadius(12)
+            }
+        }
+        .multilineTextAlignment(.center)
+        .padding()
+        .frame(maxWidth: 230)
+        .background(Color.green.opacity(0.6))
+        .foregroundColor(.black)
+        .cornerRadius(12)
+    }
+
 }
 
 #Preview {
