@@ -465,441 +465,449 @@ struct ContentView: View {
     
     //画面描画
     var body: some View {
-        
-        if !gameStarted {
-            VStack(spacing: 30) {
-                Spacer()
-                
-                Text("Chord Tone Trainer")
-                    .font(.largeTitle)
-                    .bold()
-                
-                Button("Start") {
-                    gameStarted = true
-                    generateChord()
-                }
-                .font(.title2)
-                .padding()
-                .frame(maxWidth: 200)
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
-                
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemBackground))
+        ZStack {
             
-        } else {
-            VStack {
+            if !gameStarted {
+                VStack(spacing: 30) {
+                    Spacer()
+                    
+                    Text("Chord Tone Trainer")
+                        .font(.largeTitle)
+                        .bold()
+                    
+                    Button("Start") {
+                        gameStarted = true
+                        generateChord()
+                    }
+                    .font(.title2)
+                    .padding()
+                    .frame(maxWidth: 200)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                    
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.systemBackground))
+                
+            } else {
                 VStack {
-                    
-                    // HEADER
-                    ModeHeaderView(modeName: modeDisplayName)
-                    
-                    .padding(.horizontal)
-
-                    //Spacer()
-
-                    // MAIN
-                    VStack{
-                        //問題文
-                        if mode == .guideToneProgressions, let p = currentProgression {
-                            let columns = [
-                                GridItem(.adaptive(minimum: 72), spacing: 6),
-                            ]
-                            
-                            LazyVGrid(columns: columns, spacing: 6) {
-                                ForEach(Array(p.chords.enumerated()), id:\.offset) { index, chord in
-                                    Text(chordName(for: chord))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 6)
-                                        .frame(maxWidth: .infinity)
-                                        .background(
-                                            answerStep == index
+                    VStack {
+                        
+                        // HEADER
+                        ModeHeaderView(modeName: modeDisplayName)
+                        
+                            .padding(.horizontal)
+                        
+                        //Spacer()
+                        
+                        // MAIN
+                        VStack{
+                            //問題文
+                            if mode == .guideToneProgressions, let p = currentProgression {
+                                let columns = [
+                                    GridItem(.adaptive(minimum: 72), spacing: 6),
+                                ]
+                                
+                                LazyVGrid(columns: columns, spacing: 6) {
+                                    ForEach(Array(p.chords.enumerated()), id:\.offset) { index, chord in
+                                        Text(chordName(for: chord))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 6)
+                                            .frame(maxWidth: .infinity)
+                                            .background(
+                                                answerStep == index
                                                 ? Color.blue
                                                 : Color.gray.opacity(0.2)
-                                        )
-                                        .foregroundStyle(
-                                            answerStep == index
+                                            )
+                                            .foregroundStyle(
+                                                answerStep == index
                                                 ? .white
                                                 : .primary
-                                        )
-                                        .clipShape(
-                                            RoundedRectangle(cornerRadius: 6)
-                                        ).font(.title2)
+                                            )
+                                            .clipShape(
+                                                RoundedRectangle(cornerRadius: 6)
+                                            ).font(.title2)
+                                    }
                                 }
-                            }
-
-                        } else {
-                            if mode == .tonesToChord {
-                                Text(visiblePromptTones.joined(separator: ", ") + " → ?")
-                                    .font(.largeTitle)
                                 
-                                if revealStep == .hint && !answerChecked {
-                                    Text(hintText)
-                                        .font(.title2)
-                                        .foregroundColor(.secondary)
-                                }
                             } else {
-                                Text(currentChord)
-                                    .font(.largeTitle)
+                                if mode == .tonesToChord {
+                                    Text(visiblePromptTones.joined(separator: ", ") + " → ?")
+                                        .font(.largeTitle)
+                                    
+                                    if revealStep == .hint && !answerChecked {
+                                        Text(hintText)
+                                            .font(.title2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                } else {
+                                    Text(currentChord)
+                                        .font(.largeTitle)
+                                }
                             }
-                        }
-                        
-                        
-                        // 補足表示
-                        // tonesToChord なら 他の可能なコード,
-                        // guideToneProgression なら 進行タイプ
-                        if mode == . tonesToChord,
-                           let label = otherPossibleChordLabel,
-                           lastAnswerWasCorrect != false {
+                            
+                            
+                            // 補足表示
+                            // tonesToChord なら 他の可能なコード,
+                            // guideToneProgression なら 進行タイプ
+                            if mode == . tonesToChord,
+                               let label = otherPossibleChordLabel,
+                               lastAnswerWasCorrect != false {
                                 Text(label)
                                     .font(.title2)
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
-                            
-                        } else if mode == .guideToneProgressions,
-                                  isGuideToneProgressionFinished,
-                                  let progression = currentProgression {
+                                
+                            } else if mode == .guideToneProgressions,
+                                      isGuideToneProgressionFinished,
+                                      let progression = currentProgression {
                                 Text(progression.type.displayName)
                                     .font(.title3)
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
+                                
+                            }
                             
-                        }
-                        
-                        
-                        //どれを答えるかの表示
-                        if mode == .guideToneProgressions,
-                           answerStep < progressionAnswerSteps.count {
-                            if !showingAnswer{
-                                Text("3rd & 7th ?")
+                            
+                            //どれを答えるかの表示
+                            if mode == .guideToneProgressions,
+                               answerStep < progressionAnswerSteps.count {
+                                if !showingAnswer{
+                                    Text("3rd & 7th ?")
+                                        .font(.title2)
+                                }
+                            } else if answerStep < answerOrder.count {
+                                Text("\(roleLabel(answerOrder[answerStep])) ?")
+                                    .font(.title2)
+                                
+                            } else if mode == .chordToTones {
+                                let rolesText = targetRoles
+                                    .map { roleLabel($0) }
+                                    .joined(separator: ", ")
+                                
+                                Text("\(rolesText)?")
                                     .font(.title2)
                             }
-                        } else if answerStep < answerOrder.count {
-                            Text("\(roleLabel(answerOrder[answerStep])) ?")
-                                .font(.title2)
-
-                        } else if mode == .chordToTones {
-                            let rolesText = targetRoles
-                                .map { roleLabel($0) }
-                                .joined(separator: ", ")
-
-                            Text("\(rolesText)?")
-                                .font(.title2)
-                        }
-                        
-                        //正答部分の枠
-                        let columns = [
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ]
-                        
-                        //Spacer()
-                        
-                        //正答部分の中身
-                        LazyVGrid(columns: columns, spacing: 16) {
-                            ForEach(displayedTones, id: \.self) { tone in
-                                VStack(spacing: 4) {
-                                    Text(displayName(for: tone))
-                                        .font(.title2)
-                                    if showingAnswer, let role = role(for: tone) {
-                                        Text(role.rawValue)
-                                            .font(.caption)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(8)
-                                .background(answerToneBackgroundColor(for: tone))
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                                .opacity(showingAnswer ? 1 : 0)
-                            }
-                        }.padding()
-                        
-                        //不正解時の自分が選んだコードトーン
-                        if mode == .tonesToChord,
-                           answerChecked,
-                           lastAnswerWasCorrect == false,
-                           selectedChord != nil {
-
-                            if let currentQuizChord,
-                               let selectedChord {
-                                HStack(spacing : 24) {
-                                    Text("Correct: \(chordName(for: currentQuizChord))")
-                                        .font(.body)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Text("Your answer: \(chordName(for: selectedChord))")
-                                        .font(.body)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
+                            
+                            //正答部分の枠
+                            let columns = [
+                                GridItem(.flexible()),
+                                GridItem(.flexible()),
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ]
+                            
+                            //Spacer()
+                            
+                            //正答部分の中身
                             LazyVGrid(columns: columns, spacing: 16) {
-                                ForEach(selectedChordTones, id: \.note) { tone in
-                                    let isIncluded = isToneInCorrectChord(tone.note)
-
+                                ForEach(displayedTones, id: \.self) { tone in
                                     VStack(spacing: 4) {
-                                        Text(tone.note)
-                                            .font(.body)
-
-                                        Text(roleLabel(tone.role))
-                                            .font(.caption)
+                                        Text(displayName(for: tone))
+                                            .font(.title2)
+                                        if showingAnswer, let role = role(for: tone) {
+                                            Text(role.rawValue)
+                                                .font(.caption)
+                                        }
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .padding(4)
-                                    .background(isIncluded ? Color.green.opacity(0.7) : Color.red.opacity(0.7))
+                                    .padding(8)
+                                    .background(answerToneBackgroundColor(for: tone))
                                     .foregroundColor(.white)
                                     .cornerRadius(8)
+                                    .opacity(showingAnswer ? 1 : 0)
                                 }
-                            }
-                            .padding(.horizontal)
-                        }
-                        
-                    }
-                }
-                
-                
-                
-                //回答用ボタンUI
-                //コード選択UI
-                if mode == .tonesToChord {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                        ForEach(currentChordOptions, id: \.self) { chord in
-                            let chordLabel = chordName(for: chord)
+                            }.padding()
                             
-                            Button {
-                                if selectedChord == chord {
-                                    selectedChord = nil
-                                } else {
-                                    selectedChord = chord
+                            //不正解時の自分が選んだコードトーン
+                            if mode == .tonesToChord,
+                               answerChecked,
+                               lastAnswerWasCorrect == false,
+                               selectedChord != nil {
+                                
+                                if let currentQuizChord,
+                                   let selectedChord {
+                                    HStack(spacing : 24) {
+                                        Text("Correct: \(chordName(for: currentQuizChord))")
+                                            .font(.body)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Text("Your answer: \(chordName(for: selectedChord))")
+                                            .font(.body)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
                                 
-                            } label: {
-                                let style = palette(for: chordLabel)
-                                
-                                AnswerButtonLabel(
-                                    title: chordLabel,
-                                    style: style,
-                                    isDisabled: isInputDisabled
-                                )
+                                LazyVGrid(columns: columns, spacing: 16) {
+                                    ForEach(selectedChordTones, id: \.note) { tone in
+                                        let isIncluded = isToneInCorrectChord(tone.note)
+                                        
+                                        VStack(spacing: 4) {
+                                            Text(tone.note)
+                                                .font(.body)
+                                            
+                                            Text(roleLabel(tone.role))
+                                                .font(.caption)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(4)
+                                        .background(isIncluded ? Color.green.opacity(0.7) : Color.red.opacity(0.7))
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                    }
+                                }
+                                .padding(.horizontal)
                             }
-                            .disabled(isInputDisabled)
+                            
                         }
                     }
-                } else {
-                //音選択UI
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                        
-                        ForEach(noteButtons, id: \.self) { note in
-                            Button(action: {
-                                toggleSelection(note)
+                    
+                    
+                    
+                    //回答用ボタンUI
+                    //コード選択UI
+                    if mode == .tonesToChord {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                            ForEach(currentChordOptions, id: \.self) { chord in
+                                let chordLabel = chordName(for: chord)
                                 
-                            }) {
-                                let style = palette(for: note)
-                                
-                                AnswerButtonLabel(
-                                    title: note,
-                                    style: style,
-                                    isDisabled: isInputDisabled
-                                )
+                                Button {
+                                    if selectedChord == chord {
+                                        selectedChord = nil
+                                    } else {
+                                        selectedChord = chord
+                                    }
+                                    
+                                } label: {
+                                    let style = palette(for: chordLabel)
+                                    
+                                    AnswerButtonLabel(
+                                        title: chordLabel,
+                                        style: style,
+                                        isDisabled: isInputDisabled
+                                    )
+                                }
+                                .disabled(isInputDisabled)
                             }
-                            .disabled(isInputDisabled)
                         }
-                    }.padding()
-                }
-                
-                
-                
-
-                ControlButtonsView(
-                    showButtonLabel: showButtonLabel,
-                    isShowDisabled: isShowDisabled,
-                    isCheckDisabled: isCheckDisabled,
-                    onShowTapped: {
-                        currentQuestionUsedShow = true
-                        
-                        if mode == .guideToneProgressions {
-                            if showingAnswer {
-                                if answerStep < progressionAnswerSteps.count - 1 {
-                                    answerStep += 1
-                                    selectedNotes = []
-                                    answerChecked = false
-                                    lastAnswerWasCorrect = nil
-                                    showingAnswer = false
-                                    revealStep = .none
+                    } else {
+                        //音選択UI
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                            
+                            ForEach(noteButtons, id: \.self) { note in
+                                Button(action: {
+                                    toggleSelection(note)
+                                    
+                                }) {
+                                    let style = palette(for: note)
+                                    
+                                    AnswerButtonLabel(
+                                        title: note,
+                                        style: style,
+                                        isDisabled: isInputDisabled
+                                    )
+                                }
+                                .disabled(isInputDisabled)
+                            }
+                        }.padding()
+                    }
+                    
+                    
+                    
+                    
+                    ControlButtonsView(
+                        showButtonLabel: showButtonLabel,
+                        isShowDisabled: isShowDisabled,
+                        isCheckDisabled: isCheckDisabled,
+                        onShowTapped: {
+                            currentQuestionUsedShow = true
+                            
+                            if mode == .guideToneProgressions {
+                                if showingAnswer {
+                                    if answerStep < progressionAnswerSteps.count - 1 {
+                                        answerStep += 1
+                                        selectedNotes = []
+                                        answerChecked = false
+                                        lastAnswerWasCorrect = nil
+                                        showingAnswer = false
+                                        revealStep = .none
+                                    } else {
+                                        completeCurrentQuestion()
+                                    }
                                 } else {
+                                    showingAnswer = true
+                                }
+                                return
+                            }
+                            
+                            if mode == .tonesToChord && promptVisibility == .guideTones {
+                                switch revealStep {
+                                case .none:
+                                    revealStep = .hint
+                                case .hint:
+                                    revealStep = .answer
+                                    showingAnswer = true
+                                case .answer:
+                                    selectedChord = nil
                                     completeCurrentQuestion()
                                 }
                             } else {
-                                showingAnswer = true
+                                if showingAnswer {
+                                    completeCurrentQuestion()
+                                } else {
+                                    showingAnswer = true
+                                }
                             }
-                            return
+                        },
+                        onCheckTapped: {
+                            let isCorrect = checkAnswer()
+                            lastAnswerWasCorrect = isCorrect
+                            if !isCorrect {
+                                currentQuestionHadMistake = true
+                            }
+                            answerChecked = true
+                            updateShowingAnswer(isCorrect: isCorrect)
+                            proceedAfterAnswer(isCorrect: isCorrect)
+                        }
+                    )
+                    
+                    
+                    
+                    VStack {
+                        
+                        if mode == .tonesToChord {
+                            TestControlsView(
+                                isExpanded: $isTestControlsExpanded,
+                                forceRootCForTest: $forceRootCForTest,
+                                forceDominant7ForTest: $forceDominant7ForTest
+                            )
                         }
                         
-                        if mode == .tonesToChord && promptVisibility == .guideTones {
-                            switch revealStep {
-                            case .none:
-                                revealStep = .hint
-                            case .hint:
-                                revealStep = .answer
-                                showingAnswer = true
-                            case .answer:
-                                selectedChord = nil
-                                completeCurrentQuestion()
-                            }
-                        } else {
-                            if showingAnswer {
-                                completeCurrentQuestion()
-                            } else {
-                                showingAnswer = true
-                            }
-                        }
-                    },
-                    onCheckTapped: {
-                        let isCorrect = checkAnswer()
-                        lastAnswerWasCorrect = isCorrect
-                        if !isCorrect {
-                            currentQuestionHadMistake = true
-                        }
-                        answerChecked = true
-                        updateShowingAnswer(isCorrect: isCorrect)
-                        proceedAfterAnswer(isCorrect: isCorrect)
-                    }
-                )
-                
-                
-
-                VStack {
-                    
-                    if mode == .tonesToChord {
-                        TestControlsView(
-                            isExpanded: $isTestControlsExpanded,
-                            forceRootCForTest: $forceRootCForTest,
-                            forceDominant7ForTest: $forceDominant7ForTest
-                        )
-                    }
-                    
-                    //セッションボタン
-                    if isSessionActive {
-                        HStack {
-                            Text("\(completedQuestionCount + 1) / \(sessionQuestionLimit)")
-                                .padding()
-                                .frame(maxWidth: 180)
-                                .background(Color.yellow.opacity(0.8))
-                                .foregroundColor(.black)
-                                .cornerRadius(12)
-                            
-                            Button("Quit") {
-                                quitSession()
-                            }
+                        //セッションボタン
+                        if isSessionActive {
+                            HStack {
+                                Text("\(completedQuestionCount + 1) / \(sessionQuestionLimit)")
+                                    .padding()
+                                    .frame(maxWidth: 180)
+                                    .background(Color.yellow.opacity(0.8))
+                                    .foregroundColor(.black)
+                                    .cornerRadius(12)
+                                
+                                Button("Quit") {
+                                    quitSession()
+                                }
                                 .padding()
                                 .frame(maxWidth: 80)
                                 .background(Color.red.opacity(0.8))
                                 .foregroundColor(.white)
                                 .cornerRadius(12)
+                            }
+                            
+                        } else {
+                            Button("Start Session") {
+                                startSession()
+                            }
+                            .padding()
+                            .disabled(isProcessing || showingAnswer)
+                            .frame(maxWidth: 200)
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(12)
+                            
                         }
                         
-                    } else if isSessionFinished {
-                        SessionResultView(
-                            correctCount: correctQuestionCount,
-                            totalCount: sessionQuestionLimit,
-                            accuracy: sessionAccuracy,
-                            averageTime: averageAnswerTime,
-                            onRestart: startSession,
-                            onQuit: quitSession
-                        )
-                        
-                    } else {
-                        Button("Start Session") {
-                            startSession()
+                    }
+                    .padding(.horizontal, 40)
+                    
+                    HStack {
+                        //モード切り替え
+                        Button("Change Mode"){
+                            switch mode {
+                            case .chordToTones:
+                                mode = .sequential
+                            case .sequential:
+                                mode = .tonesToChord
+                            case .tonesToChord:
+                                mode = .guideToneProgressions
+                            case .guideToneProgressions:
+                                mode = .chordToTones
+                            }
+                            
+                            if !isShuffleAvailable {
+                                shuffleEnabled = false
+                            }
+                            
+                            selectedNotes.removeAll()
+                            selectedChord = nil
+                            
+                            generateChord()
+                            
                         }
                         .padding()
-                        .disabled(isProcessing || showingAnswer)
-                        .frame(maxWidth: 200)
+                        .disabled(isProcessing
+                                  || showingAnswer
+                                  || isSessionActive
+                        )
+                        .frame(maxWidth: 180)
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(12)
                         
+                        
+                        //設定ボタン
+                        Button {
+                            //設定画面を開く前の設定状態を保存
+                            sequentialPresetBeforeEditing = sequentialPreset
+                            shuffleEnabledBeforeEditing = shuffleEnabled
+                            promptVisibilityBeforeEditing = promptVisibility
+                            
+                            isShowingQuizSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }.sheet(
+                            isPresented: $isShowingQuizSettings,
+                            onDismiss: {
+                                handleQuizSettingsDismiss()
+                            }
+                        ) {
+                            QuizSettingsView(
+                                mode: mode,
+                                isSessionActive: isSessionActive,
+                                promptVisibility: $promptVisibility,
+                                sequentialPreset: $sequentialPreset,
+                                shuffleEnabled: $shuffleEnabled,
+                                noteButtonLayout: $noteButtonLayout
+                            )
+                        }.onChange(of: noteButtonLayout) {
+                            refreshNoteButtonLayout()
+                        }
+                        .padding()
+                        .disabled(isProcessing || showingAnswer)
+                        .frame(maxWidth: 80)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(12)
+                        
+                        
                     }
-
                 }
-                .padding(.horizontal, 40)
+            }
+            
+            if isSessionFinished {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
                 
-                HStack {
-                    //モード切り替え
-                    Button("Change Mode"){
-                        switch mode {
-                        case .chordToTones:
-                            mode = .sequential
-                        case .sequential:
-                            mode = .tonesToChord
-                        case .tonesToChord:
-                            mode = .guideToneProgressions
-                        case .guideToneProgressions:
-                            mode = .chordToTones
-                        }
-                        
-                        if !isShuffleAvailable {
-                            shuffleEnabled = false
-                        }
-                        
-                        selectedNotes.removeAll()
-                        selectedChord = nil
-                        
-                        generateChord()
-                        
-                    }
-                    .padding()
-                    .disabled(isProcessing
-                              || showingAnswer
-                              || isSessionActive
-                    )
-                    .frame(maxWidth: 180)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(12)
-                    
-                    
-                    //設定ボタン
-                    Button {
-                        //設定画面を開く前の設定状態を保存
-                        sequentialPresetBeforeEditing = sequentialPreset
-                        shuffleEnabledBeforeEditing = shuffleEnabled
-                        promptVisibilityBeforeEditing = promptVisibility
-                        
-                        isShowingQuizSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }.sheet(
-                        isPresented: $isShowingQuizSettings,
-                        onDismiss: {
-                            handleQuizSettingsDismiss()
-                        }
-                    ) {
-                        QuizSettingsView(
-                            mode: mode,
-                            isSessionActive: isSessionActive,
-                            promptVisibility: $promptVisibility,
-                            sequentialPreset: $sequentialPreset,
-                            shuffleEnabled: $shuffleEnabled,
-                            noteButtonLayout: $noteButtonLayout
-                        )
-                    }.onChange(of: noteButtonLayout) {
-                        refreshNoteButtonLayout()
-                    }
-                    .padding()
-                    .disabled(isProcessing || showingAnswer)
-                    .frame(maxWidth: 80)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(12)
-                    
-                    
-                }
+                SessionResultView(
+                    correctCount: correctQuestionCount,
+                    totalCount: sessionQuestionLimit,
+                    accuracy: sessionAccuracy,
+                    averageTime: averageAnswerTime,
+                    onRestart: startSession,
+                    onQuit: quitSession
+                )
+                .padding(24)
+                
             }
         }
     }
@@ -1908,14 +1916,23 @@ struct SessionResultView : View {
     let onQuit: () -> Void
     
     var body: some View {
-        VStack {
+        VStack(spacing: 20) {
             Text("Session Finished")
+                .font(.title2)
                 .fontWeight(.heavy)
                 .fontDesign(.serif)
-            Text("\(totalCount) 問中 \(correctCount) 問正解")
-            Text("正答率 \(accuracy, specifier: "%.0f")%")
-            Text("平均回答時間 \(averageTime, specifier: "%.1f")秒")
             
+            VStack(spacing: 8) {
+                Text("\(totalCount) 問中 \(correctCount) 問正解")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                Text("正答率 \(accuracy, specifier: "%.0f")%")
+                Text("平均回答時間 \(averageTime, specifier: "%.1f")秒")
+            }
+            
+            Divider()
+                
             HStack{
                 Button("Restart") {
                     onRestart()
@@ -1934,12 +1951,11 @@ struct SessionResultView : View {
                 .cornerRadius(12)
             }
         }
-        .multilineTextAlignment(.center)
-        .padding()
-        .frame(maxWidth: 230)
-        .background(Color.green.opacity(0.6))
-        .foregroundColor(.black)
-        .cornerRadius(12)
+        .padding(24)
+        .frame(maxWidth: 360)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(radius: 12)
     }
 
 }
