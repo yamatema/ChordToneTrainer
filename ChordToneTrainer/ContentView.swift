@@ -409,6 +409,14 @@ struct ContentView: View {
         return answerStep == progression.chords.count - 1 && showingAnswer
     }
     
+    var currentProgressionChordNames: [String] {
+        guard let progression = currentProgression else {
+            return []
+        }
+
+        return progression.chords.map { chordName(for: $0) }
+    }
+    
     var shouldShowTheoryFeedback: Bool {
         mode == .tonesToChord
         && (showingAnswer || answerChecked || revealStep == .answer)
@@ -504,94 +512,38 @@ struct ContentView: View {
                         
                         // MAIN
                         VStack{
+                            
+                            let currentRoleLabel: String? =
+                                answerStep < answerOrder.count
+                                ? roleLabel(answerOrder[answerStep])
+                                : nil
+                            
+                            let targetRolesText = targetRoles
+                                .map { roleLabel($0) }
+                                .joined(separator: ", ")
+                            
                             //問題文
-                            if mode == .guideToneProgressions, let p = currentProgression {
-                                let columns = [
-                                    GridItem(.adaptive(minimum: 72), spacing: 6),
-                                ]
-                                
-                                LazyVGrid(columns: columns, spacing: 6) {
-                                    ForEach(Array(p.chords.enumerated()), id:\.offset) { index, chord in
-                                        Text(chordName(for: chord))
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 6)
-                                            .frame(maxWidth: .infinity)
-                                            .background(
-                                                answerStep == index
-                                                ? Color.blue
-                                                : Color.gray.opacity(0.2)
-                                            )
-                                            .foregroundStyle(
-                                                answerStep == index
-                                                ? .white
-                                                : .primary
-                                            )
-                                            .clipShape(
-                                                RoundedRectangle(cornerRadius: 6)
-                                            ).font(.title2)
-                                    }
-                                }
-                                
-                            } else {
-                                if mode == .tonesToChord {
-                                    Text(visiblePromptTones.joined(separator: ", ") + " → ?")
-                                        .font(.largeTitle)
-                                    
-                                    if revealStep == .hint && !answerChecked {
-                                        Text(hintText)
-                                            .font(.title2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                } else {
-                                    Text(currentChord)
-                                        .font(.largeTitle)
-                                }
-                            }
+                            QuestionPromptView(
+                                mode: mode,
+                                currentProgression: currentProgression,
+                                answerStep: answerStep,
+                                hintText: hintText,
+                                answerChecked: answerChecked,
+                                revealStep: revealStep,
+                                visiblePromptTones: visiblePromptTones,
+                                currentChord: currentChord,
+                                otherPossibleChordLabel: otherPossibleChordLabel,
+                                lastAnswerWasCorrect: lastAnswerWasCorrect,
+                                isGuideToneProgressionFinished: isGuideToneProgressionFinished,
+                                progressionAnswerSteps: progressionAnswerSteps,
+                                showingAnswer: showingAnswer,
+                                answerOrder: answerOrder,
+                                targetRoles: targetRoles,
+                                chordNames: currentProgressionChordNames,
+                                currentRoleLabel: currentRoleLabel,
+                                targetRolesText: targetRolesText
+                            )
                             
-                            
-                            // 補足表示
-                            // tonesToChord なら 他の可能なコード,
-                            // guideToneProgression なら 進行タイプ
-                            if mode == . tonesToChord,
-                               let label = otherPossibleChordLabel,
-                               lastAnswerWasCorrect != false {
-                                Text(label)
-                                    .font(.title2)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                
-                            } else if mode == .guideToneProgressions,
-                                      isGuideToneProgressionFinished,
-                                      let progression = currentProgression {
-                                Text(progression.type.displayName)
-                                    .font(.title3)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                
-                            }
-                            
-                            
-                            //どれを答えるかの表示
-                            if mode == .guideToneProgressions,
-                               answerStep < progressionAnswerSteps.count {
-                                if !showingAnswer{
-                                    Text("3rd & 7th ?")
-                                        .font(.title2)
-                                }
-                            } else if answerStep < answerOrder.count {
-                                Text("\(roleLabel(answerOrder[answerStep])) ?")
-                                    .font(.title2)
-                                
-                            } else if mode == .chordToTones {
-                                let rolesText = targetRoles
-                                    .map { roleLabel($0) }
-                                    .joined(separator: ", ")
-                                
-                                Text("\(rolesText)?")
-                                    .font(.title2)
-                            }
                             
                             //正答部分の枠
                             let columns = [
@@ -1743,6 +1695,114 @@ struct ModeHeaderView: View {
     }
 }
 
+
+struct QuestionPromptView: View {
+    let mode: QuizMode
+    let currentProgression: GuideToneProgression?
+    let answerStep: Int
+    let hintText: String
+    let answerChecked: Bool
+    let revealStep: RevealStep
+    let visiblePromptTones: [String]
+    let currentChord: String
+    let otherPossibleChordLabel: String?
+    let lastAnswerWasCorrect: Bool?
+    let isGuideToneProgressionFinished: Bool
+    let progressionAnswerSteps: [ProgressionAnswerStep]
+    let showingAnswer: Bool
+    let answerOrder: [ToneRole]
+    let targetRoles: [ToneRole]
+    let chordNames: [String]
+    let currentRoleLabel: String?
+    let targetRolesText: String
+    
+    var body: some View {
+        if mode == .guideToneProgressions {
+            let columns = [
+                GridItem(.adaptive(minimum: 72), spacing: 6),
+            ]
+            
+            LazyVGrid(columns: columns, spacing: 6) {
+                ForEach(Array(chordNames.enumerated()), id:\.offset) { index, chordName in
+                    Text(chordName)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            answerStep == index
+                            ? Color.blue
+                            : Color.gray.opacity(0.2)
+                        )
+                        .foregroundStyle(
+                            answerStep == index
+                            ? .white
+                            : .primary
+                        )
+                        .clipShape(
+                            RoundedRectangle(cornerRadius: 6)
+                        )
+                        .font(.title2)
+                }
+            }
+            
+        } else {
+            if mode == .tonesToChord {
+                Text(visiblePromptTones.joined(separator: ", ") + " → ?")
+                    .font(.largeTitle)
+                
+                if revealStep == .hint && !answerChecked {
+                    Text(hintText)
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Text(currentChord)
+                    .font(.largeTitle)
+            }
+        }
+        
+        
+        // 補足表示
+        // tonesToChord なら 他の可能なコード,
+        // guideToneProgression なら 進行タイプ
+        if mode == . tonesToChord,
+           let label = otherPossibleChordLabel,
+           lastAnswerWasCorrect != false {
+            Text(label)
+                .font(.title2)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            
+        } else if mode == .guideToneProgressions,
+                  isGuideToneProgressionFinished,
+                  let progression = currentProgression {
+            Text(progression.type.displayName)
+                .font(.title3)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            
+        }
+        
+        
+        //どれを答えるかの表示
+        if mode == .guideToneProgressions,
+           answerStep < progressionAnswerSteps.count {
+            if !showingAnswer{
+                Text("3rd & 7th ?")
+                    .font(.title2)
+            }
+        } else if let currentRoleLabel {
+            Text("\(currentRoleLabel) ?")
+                .font(.title2)
+            
+        } else if mode == .chordToTones {
+            Text("\(targetRolesText)?")
+                .font(.title2)
+        }
+    }
+}
 
 struct AnswerButtonLabel: View {
     let title: String
