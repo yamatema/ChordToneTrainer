@@ -154,9 +154,21 @@ struct ButtonStylePalette {
 }
 
 struct ContentView: View {
-    let notes = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"]
+    //内部計算用
+    let notes = [
+        "C", "D♭", "D", "E♭", "E", "F",
+        "G♭", "G", "A♭", "A", "B♭", "B"
+    ]
+    //♯系表示時用
+    let sharpNoteNames = [
+        "C", "C♯", "D", "D♯", "E", "F",
+        "F♯", "G", "G♯", "A", "A♯", "B"
+    ]
     //回答UI 異名同音表記対応用
-    let defaultNoteButtons = ["C","C♯/D♭","D","D♯/E♭","E","F","F♯/G♭","G","G♯/A♭","A","A♯/B♭","B"]
+    let defaultNoteButtons = [
+        "C", "C♯/D♭", "D", "D♯/E♭", "E", "F",
+        "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B"
+    ]
     
     let chordTypes: [ChordType] = [
         ChordType(name: "M7", intervals: [4,7,11]),
@@ -192,7 +204,7 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    @State private var mode: QuizMode = .tonesToChord
+    @State private var mode: QuizMode = .chordToTones
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
@@ -927,6 +939,12 @@ struct ContentView: View {
             ? chordTypes.first { $0.name == "7"}!
             : chordTypes.randomElement()!
         
+        let useSharp = Bool.random()
+        let displayRoot = useSharp
+            ? sharpNoteNames[rootIndex]
+            : notes[rootIndex]
+        print(useSharp, displayRoot)
+        
         let root = notes[rootIndex]
         var actualRoot = root
         var actualChordType = chordType
@@ -964,8 +982,8 @@ struct ContentView: View {
         var newRoot: String
         var newChordType: ChordType
         
+        
         switch mode {
-            
         case .chordToTones:
             repeat {
                 newRoot = notes[Int.random(in: 0..<notes.count)]
@@ -976,7 +994,11 @@ struct ContentView: View {
             actualRoot = newRoot
             actualChordType = newChordType
             currentChord = actualRoot + actualChordType.name
+            
+            actualChord = Chord(root: actualRoot, type: actualChordType)
+            fullTones = buildTones(for: actualChord)
             chordTones = fullTones.map { $0.note }
+            
             answerOrder = []
             
             previousRoot = actualRoot
@@ -992,6 +1014,9 @@ struct ContentView: View {
             actualRoot = newRoot
             actualChordType = newChordType
             currentChord = actualRoot + actualChordType.name
+            
+            actualChord = Chord(root: actualRoot, type: actualChordType)
+            fullTones = buildTones(for: actualChord)
             chordTones = fullTones.map { $0.note }
             
             switch sequentialPreset {
