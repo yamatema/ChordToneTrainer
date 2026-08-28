@@ -192,7 +192,7 @@ struct ContentView: View {
     
     
     @State private var gameStarted = false
-    @State private var mode: QuizMode = .chordToTones
+    @State private var mode: QuizMode = .tonesToChord
     @State private var sequentialPreset: SequentialPreset = .chordTones
     //
     @State private var showingAnswer = false
@@ -213,6 +213,9 @@ struct ContentView: View {
     //プレイヤーの回答
     @State private var selectedNotes: [String] = []
     @State private var selectedChord: Chord? = nil
+    //前問の内容
+    @State private var previousRoot: String?
+    @State private var previousChordType: ChordType?
     //tonesToChordモード用
     @State private var currentChordOptions: [Chord] = []
     @State private var promptTones: [String] = []
@@ -952,27 +955,42 @@ struct ContentView: View {
             currentProgression = nil
         }
         
-        let actualChord = Chord(root: actualRoot, type: actualChordType)
-        let correctChord = actualChord
-        
         //let candidates = candidateChords(for: actualChord)
         //let equivalents = equivalentChords(for: actualChord, candidates: candidates)
         
-        currentQuizChord = correctChord
-
-        
-
-        
+        var actualChord = Chord(root: actualRoot, type: actualChordType)
         fullTones = buildTones(for: actualChord)
+        
+        var newRoot: String
+        var newChordType: ChordType
         
         switch mode {
             
         case .chordToTones:
+            repeat {
+                newRoot = notes[Int.random(in: 0..<notes.count)]
+                newChordType = chordTypes.randomElement()!
+            } while newRoot == previousRoot &&
+                    newChordType == previousChordType
+            
+            actualRoot = newRoot
+            actualChordType = newChordType
             currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
             answerOrder = []
             
+            previousRoot = actualRoot
+            previousChordType = actualChordType
+            
         case .sequential:
+            repeat {
+                newRoot = notes[Int.random(in: 0..<notes.count)]
+                newChordType = chordTypes.randomElement()!
+            } while newRoot == previousRoot &&
+                    newChordType == previousChordType
+            
+            actualRoot = newRoot
+            actualChordType = newChordType
             currentChord = actualRoot + actualChordType.name
             chordTones = fullTones.map { $0.note }
             
@@ -983,10 +1001,32 @@ struct ContentView: View {
                 answerOrder = [.third, .seventh]
             }
             
+            previousRoot = actualRoot
+            previousChordType = actualChordType
+            
         case .tonesToChord:
+            repeat {
+                newRoot = forceRootCForTest
+                    ? "C"
+                    : notes[Int.random(in: 0..<notes.count)]
+                newChordType = forceDominant7ForTest
+                    ? chordTypes.first { $0.name == "7"}!
+                    : chordTypes.randomElement()!
+                
+            } while newRoot == previousRoot &&
+                    newChordType == previousChordType &&
+                    !(forceRootCForTest && forceDominant7ForTest)
+            
+            actualRoot = newRoot
+            actualChordType = newChordType
+            actualChord = Chord(root: newRoot, type: newChordType)
+            
+            let correctChord = actualChord
+            currentQuizChord = correctChord
+            
+            //問題文(フル)
             chordTones = buildTones(for: correctChord).map { $0.note }
-            //正答表示用
-            promptTones = chordTones.shuffled() //問題文
+            promptTones = chordTones//.shuffled() //シャッフルのON/OFFは後ほど
             
             currentChordOptions = makeChordOptions(
                 correctChord: correctChord,
@@ -1009,12 +1049,18 @@ struct ContentView: View {
 
             hintTone = visibleGuideTones.randomElement()
             
+            previousRoot = actualRoot
+            previousChordType = actualChordType
+            
+            print(newRoot, newChordType.name)
+            
         case .guideToneProgressions:
             chordTones = fullTones.map { $0.note }
             answerOrder = [.third, .seventh]
             
         }
         
+
         
         if shuffleEnabled {
             answerOrder.shuffle()
