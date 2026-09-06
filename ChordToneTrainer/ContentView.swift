@@ -213,7 +213,7 @@ struct ContentView: View {
     @State private var noteButtonLayout: NoteButtonLayout = .chromatic
     //コードトーン（表示用）
     @State private var chordTones: [String] = []
-    @State private var currentChord: String = "ChordTones"
+    @State private var currentChordPrompt: String = "ChordTones"
     //GuideToneProgressionモード
     @State private var currentProgression: GuideToneProgression? = nil
     @State private var progressionAnswerSteps: [ProgressionAnswerStep] = []
@@ -546,7 +546,7 @@ struct ContentView: View {
                                 answerChecked: answerChecked,
                                 revealStep: revealStep,
                                 visiblePromptTones: visiblePromptTones,
-                                currentChord: currentChord,
+                                currentChordPrompt: currentChordPrompt,
                                 otherPossibleChordLabel: otherPossibleChordLabel,
                                 lastAnswerWasCorrect: lastAnswerWasCorrect,
                                 isGuideToneProgressionFinished: isGuideToneProgressionFinished,
@@ -931,6 +931,8 @@ struct ContentView: View {
         currentQuestionHadMistake = false
         currentQuestionUsedShow = false
         
+        let useSharp = Bool.random()
+        //let useSharp = true //TEST
         
         let rootIndex = forceRootCForTest
             ? 0
@@ -938,16 +940,14 @@ struct ContentView: View {
         let chordType = forceDominant7ForTest
             ? chordTypes.first { $0.name == "7"}!
             : chordTypes.randomElement()!
-        
-        let useSharp = Bool.random()
-        let displayRoot = useSharp
-            ? sharpNoteNames[rootIndex]
-            : notes[rootIndex]
-        print(useSharp, displayRoot)
-        
+                
         let root = notes[rootIndex]
         var actualRoot = root
         var actualChordType = chordType
+        
+        var displayRoot = useSharp
+            ? sharpNoteNames[rootIndex]
+            : notes[rootIndex]
         
         //音名UIの並び決定
         refreshNoteButtonLayout()
@@ -976,8 +976,16 @@ struct ContentView: View {
         //let candidates = candidateChords(for: actualChord)
         //let equivalents = equivalentChords(for: actualChord, candidates: candidates)
         
+        
         var actualChord = Chord(root: actualRoot, type: actualChordType)
-        fullTones = buildTones(for: actualChord)
+        //fullTones = buildTones(for: actualChord)
+        
+        var displayChord = Chord(
+            root: displayRoot,
+            type: actualChordType
+        )
+
+        fullTones = buildTones(for: displayChord)
         
         var newRoot: String
         var newChordType: ChordType
@@ -993,11 +1001,23 @@ struct ContentView: View {
             
             actualRoot = newRoot
             actualChordType = newChordType
-            currentChord = actualRoot + actualChordType.name
+
+            let newRootIndex = notes.firstIndex(of: actualRoot)!
+            displayRoot = useSharp
+                ? sharpNoteNames[newRootIndex]
+                : notes[newRootIndex]
+    //print(useSharp, displayRoot)
+
+            currentChordPrompt = displayRoot + actualChordType.name
             
-            actualChord = Chord(root: actualRoot, type: actualChordType)
-            fullTones = buildTones(for: actualChord)
+            displayChord = Chord(
+                root: displayRoot,
+                type: actualChordType
+            )
+
+            fullTones = buildTones(for: displayChord)
             chordTones = fullTones.map { $0.note }
+    //print(chordTones)
             
             answerOrder = []
             
@@ -1013,11 +1033,23 @@ struct ContentView: View {
             
             actualRoot = newRoot
             actualChordType = newChordType
-            currentChord = actualRoot + actualChordType.name
+
+            let newRootIndex = notes.firstIndex(of: actualRoot)!
+            displayRoot = useSharp
+                ? sharpNoteNames[newRootIndex]
+                : notes[newRootIndex]
+    //print(useSharp, displayRoot)
             
-            actualChord = Chord(root: actualRoot, type: actualChordType)
-            fullTones = buildTones(for: actualChord)
+            currentChordPrompt = displayRoot + actualChordType.name
+            
+            displayChord = Chord(
+                root: displayRoot,
+                type: actualChordType
+            )
+            
+            fullTones = buildTones(for: displayChord)
             chordTones = fullTones.map { $0.note }
+    //print(chordTones)
             
             switch sequentialPreset {
             case .chordTones:
@@ -1548,26 +1580,29 @@ struct ContentView: View {
     
     //答え表示の実音＋理論上音名の併記
     func displayName(for note: String) -> String {
-        // 「C♯/D♭」みたいなケースはそのまま
-        if note.contains("/") {
+        guard needsEnharmonicHint(note) else {
             return note
         }
 
-        // 半音に変換できるか
         guard let semitone = noteToSemitone[note] else {
             return note
         }
-
-        // 鍵盤上の代表音（notes配列から）
+        
         let realNote = notes[semitone]
 
-        // 理論名と一致してればそのまま
-        if realNote == note {
-            return note
-        }
+        return "\(note)（\(realNote)）"
+    }
+    
+    func needsEnharmonicHint(_ note: String) -> Bool {
+        let unusualSpellings: Set<String> = [
+            "B♯", "C♭", "E♯", "F♭",
+            "B♯♯", "C♭♭", "E♯♯", "F♭♭",
+            "C♯♯", "D♭♭", "D♯♯", "E♭♭",
+            "F♯♯", "G♭♭", "G♯♯", "A♭♭",
+            "A♯♯", "B♭♭"
+        ]
 
-        // 違えば併記
-        return "\(realNote)（\(note)）"
+        return unusualSpellings.contains(note)
     }
     
     //正誤判定
@@ -1775,7 +1810,7 @@ struct QuestionPromptView: View {
     let answerChecked: Bool
     let revealStep: RevealStep
     let visiblePromptTones: [String]
-    let currentChord: String
+    let currentChordPrompt: String
     let otherPossibleChordLabel: String?
     let lastAnswerWasCorrect: Bool?
     let isGuideToneProgressionFinished: Bool
@@ -1827,7 +1862,7 @@ struct QuestionPromptView: View {
                         .foregroundColor(.secondary)
                 }
             } else {
-                Text(currentChord)
+                Text(currentChordPrompt)
                     .font(.largeTitle)
             }
         }
