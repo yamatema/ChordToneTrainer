@@ -42,39 +42,78 @@ extension ToneRole {
 enum DominantTreatment {
     case normal
     case tritoneSub
+    
+    var displayName: String {
+        switch self {
+        case .normal:
+            return "(通常のドミナント7th)"
+        case .tritoneSub:
+            return "(トライトーン代理)"
+        }
+    }
 }
 
 enum GuideToneProgressionType: String, CaseIterable {
     case major
     case minor
-    case tritoneSub
     case backdoor
     case secondary
-    case secondaryTritoneSub
     case chainIIV
 
     var displayName: String {
         switch self {
         case .major:
-            return "Major: iim7–V7–IM7"
+            return "メジャー ii-V"
 
         case .minor:
-            return "Minor: iiø–V7–im7"
-
-        case .tritoneSub:
-            return "Tritone Substitution: iim7–subV7–IM7"
+            return "マイナー ii-V"
 
         case .backdoor:
-            return "Backdoor ii-V: ivm7–♭VII7–IM7"
+            return "バックドアケーデンス"
 
         case .secondary:
-            return "Secondary Dominant: (iim7-V7 of V)-V7"
-
-        case .secondaryTritoneSub:
-            return "Secondary Dominant: (iim7-subV7 of V)-V7"
+            return "セカンダリードミナント"
 
         case .chainIIV:
-            return "Chained ii–V: (iim7-V7 of II)-iim7-V7-IM7"
+            return "連続メジャー ii-V"
+        }
+    }
+    
+    func progressionFormula(
+        treatment: DominantTreatment
+    ) -> String {
+        switch self {
+        case .major:
+            let dominantLabel =
+                treatment == .normal ? "V7" : "subV7"
+            
+            return "iim7 – \(dominantLabel) – IM7"
+
+        case .minor:
+            let dominantLabel =
+                treatment == .normal ? "V7" : "subV7"
+            
+            return "iiø – \(dominantLabel) – im7"
+
+        case .backdoor:
+            let dominantLabel =
+                treatment == .normal ? "♭VII7" : "sub♭VII7"
+            
+            return "ivm7 – \(dominantLabel) – IM7"
+
+        case .secondary:
+            let dominantLabel =
+                treatment == .normal ? "V7/V" : "subV7/V"
+            
+            return "iim7/V – \(dominantLabel) – V7"
+
+        case .chainIIV:
+            let dominantLabel1st =
+                treatment == .normal ? "V7/ii" : "subV7/ii"
+            let dominantLabel2nd =
+                treatment == .normal ? "V7" : "subV7"
+            
+            return "iim7/ii – \(dominantLabel1st) – iim7 – \(dominantLabel2nd) – IM7"
         }
     }
 }
@@ -147,6 +186,7 @@ struct Chord: Equatable, Hashable {
 struct GuideToneProgression {
     let chords: [Chord]
     let type: GuideToneProgressionType
+    let dominantTreatment: DominantTreatment
 }
 
 struct ProgressionAnswerStep {
@@ -430,7 +470,7 @@ struct ContentView: View {
             return false
         }
         
-        return answerStep == progression.chords.count - 1 && showingAnswer
+        return answerStep == progression.chords.count - 1 && (answerChecked || showingAnswer)
     }
     
     var currentProgressionChordNames: [String] {
@@ -1361,68 +1401,49 @@ struct ContentView: View {
     }
     
     func generateGuideToneProgression() -> GuideToneProgression {
-        let rootIndex = Int.random(in: 0..<notes.count)
-        //let rootIndex = 0   //test
-        var root = notes[rootIndex]
-        
-        let dominantTreatment : DominantTreatment = Bool.random() ? .normal : .tritoneSub
-        
-        var iiIndex = (rootIndex + 2) % 12          // M2
-        var normalVIndex = (rootIndex + 7) % 12     // P5
-        var targetIndex = (rootIndex + 7) % 12      // V
-        var secondaryIiIndex = (targetIndex + 2) % 12   // ii of V
-        var dominantIndex: Int
-
         let minor7 = chordTypes.first { $0.name == "m7" }!
         let halfDiminished = chordTypes.first { $0.name == "ø" }!
         let dominant7 = chordTypes.first { $0.name == "7" }!
         let major7 = chordTypes.first { $0.name == "M7" }!
         
         //進行タイプの決定
-        //var progressionType = GuideToneProgressionType.allCases.randomElement()!
-        let progressionType = GuideToneProgressionType.major    //test
+        let progressionType = GuideToneProgressionType.allCases.randomElement()!
+        //let progressionType = GuideToneProgressionType.backdoor    //test
 
         let chords: [Chord]
         
-        var newRootIndex: Int
-        var newTreatment: DominantTreatment
+        var selectedRootIndex: Int
+        var selectedDominantTreatment: DominantTreatment
+        
+        //progressionType, rootIndex, treatmentの重複回避
+        repeat {
+            //ここにprogressionType再選
+            
+            selectedRootIndex = Int.random(in: 0..<notes.count)
+            selectedDominantTreatment = Bool.random() ? .normal : .tritoneSub
+        } while /* progressionType == previousProgressionType && */
+            notes[selectedRootIndex] == previousProgressionRoot &&
+            selectedDominantTreatment == previousDominantTreatment
+        
+        let root = notes[selectedRootIndex]
+        let iiIndex = (selectedRootIndex + 2) % 12
+        let normalVIndex = (selectedRootIndex + 7) % 12
+        let targetIndex = (selectedRootIndex + 7) % 12
+        let secondaryIiIndex = (targetIndex + 2) % 12
         
         switch progressionType {
         case .major:
-            repeat {
-                //progressionType再選
-                
-                //root再選
-                newRootIndex = Int.random(in: 0..<notes.count)
-                
-                //dominantTreatment再選
-                newTreatment = Bool.random() ? .normal : .tritoneSub
-
-            } while /* progressionType == previousProgressionType && */
-                notes[newRootIndex] == previousProgressionRoot &&
-                newTreatment == previousDominantTreatment
-            
-            root = notes[newRootIndex]
-            iiIndex = (newRootIndex + 2) % 12
-            normalVIndex = (newRootIndex + 7) % 12
-            
-            switch newTreatment {
-            case .normal:
-                dominantIndex = normalVIndex
-            case .tritoneSub:
-                dominantIndex = (normalVIndex + 6) % 12
-            }
+            let dominantIndex = selectedDominantTreatment == .normal
+                ? normalVIndex
+                : (normalVIndex + 6) % 12
             
             chords = [
                 Chord(root: notes[iiIndex], type: minor7),
                 Chord(root: notes[dominantIndex], type: dominant7),
                 Chord(root: root, type: major7)
             ]
-            //print(newTreatment, notes[iiIndex], notes[dominantIndex], root)
+            //print(selectedDominantTreatment, notes[iiIndex], notes[dominantIndex], root)
             
-            previousProgressionRoot = root
-            previousDominantTreatment = newTreatment
-
         case .minor:
             chords = [
                 Chord(root: notes[iiIndex], type: halfDiminished),
@@ -1430,54 +1451,62 @@ struct ContentView: View {
                 Chord(root: root, type: minor7)
             ]
         
-        case .tritoneSub:
-            let tritoneSubVIndex = (rootIndex + 1) % 12 // subV
-            chords = [
-                Chord(root: notes[iiIndex], type: minor7),
-                Chord(root: notes[tritoneSubVIndex], type: dominant7),
-                Chord(root: root, type: major7)
-            ]
-        
         case .backdoor:
-            let backdoorIiIndex = (rootIndex + 5) % 12  // P4
-            let backdoorVIndex = (rootIndex + 10) % 12  // m7
+            let backdoorIiIndex = (selectedRootIndex + 5) % 12  // P4
+            let backdoorVIndex = (selectedRootIndex + 10) % 12  // m7
+            
+            let dominantIndex = selectedDominantTreatment == .normal
+                ? backdoorVIndex
+                : (backdoorVIndex + 6) % 12
+            
             chords = [
                 Chord(root: notes[backdoorIiIndex], type: minor7),
-                Chord(root: notes[backdoorVIndex], type: dominant7),
+                Chord(root: notes[dominantIndex], type: dominant7),
                 Chord(root: root, type: major7)
             ]
         
         case .secondary:
             let secondaryVIndex = (targetIndex + 7) % 12    // V of V
+            
+            let dominantIndex = selectedDominantTreatment == .normal
+                ? secondaryVIndex
+                : (secondaryVIndex + 6) % 12
+            
             chords = [
                 Chord(root: notes[secondaryIiIndex], type: minor7),
-                Chord(root: notes[secondaryVIndex], type: dominant7),
-                Chord(root: notes[targetIndex], type: dominant7)
-            ]
-        
-        case .secondaryTritoneSub:
-            let secondarySubVIndex = (targetIndex + 1) % 12 //subV of V
-            chords = [
-                Chord(root: notes[secondaryIiIndex], type: minor7),
-                Chord(root: notes[secondarySubVIndex], type: dominant7),
+                Chord(root: notes[dominantIndex], type: dominant7),
                 Chord(root: notes[targetIndex], type: dominant7)
             ]
         
         case .chainIIV:
-            let precedingIiIndex = (rootIndex + 4) % 12
-            let precedingVIndex = (rootIndex + 9) % 12
+            let precedingIiIndex = (selectedRootIndex + 4) % 12
+            let precedingVIndex = (selectedRootIndex + 9) % 12
+            
+            let firstDominantIndex = selectedDominantTreatment == .normal
+                ? precedingVIndex
+                : (precedingVIndex + 6) % 12
+
+            let secondDominantIndex = selectedDominantTreatment == .normal
+                ? normalVIndex
+                : (normalVIndex + 6) % 12
+            
             chords = [
                 Chord(root: notes[precedingIiIndex], type: minor7),
-                Chord(root: notes[precedingVIndex], type: dominant7),
+                Chord(root: notes[firstDominantIndex], type: dominant7),
                 Chord(root: notes[iiIndex], type: minor7),
-                Chord(root: notes[normalVIndex], type: dominant7),
+                Chord(root: notes[secondDominantIndex], type: dominant7),
                 Chord(root: root, type: major7),
             ]
         }
         
+        print(progressionType, selectedDominantTreatment)
+        previousProgressionRoot = root
+        previousDominantTreatment = selectedDominantTreatment
+        
         return GuideToneProgression(
             chords: chords,
-            type: progressionType
+            type: progressionType,
+            dominantTreatment: selectedDominantTreatment
         )
     }
     
@@ -1926,12 +1955,16 @@ struct QuestionPromptView: View {
         } else if mode == .guideToneProgressions,
                   isGuideToneProgressionFinished,
                   let progression = currentProgression {
-            Text(progression.type.displayName)
+            Text(
+                "\(progression.type.displayName):\n" +
+                progression.type.progressionFormula(
+                    treatment: progression.dominantTreatment
+                )
+            )
                 .font(.title3)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            
         }
         
         
