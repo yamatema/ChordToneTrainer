@@ -1003,7 +1003,7 @@ struct ContentView: View {
 
         
         if mode == .guideToneProgressions {
-            let result = generateGuideToneProgression()
+            let result = generateGuideToneProgression(useSharp: useSharp)
             
             currentProgression = result
             progressionAnswerSteps = result.chords.map { chord in
@@ -1218,6 +1218,50 @@ struct ContentView: View {
         return tones
     }
     
+    //ある root から「何度上・何半音上」の音名を正しく綴る
+    func spelledNote(
+        from root: String,
+        semitoneOffset: Int,
+        degreeStep: Int
+    ) -> String {
+        let letters = ["C", "D", "E", "F", "G", "A", "B"]
+
+        let naturalSemitones: [String: Int] = [
+            "C": 0, "D": 2, "E": 4, "F": 5,
+            "G": 7, "A": 9, "B": 11
+        ]
+
+        let rootLetter = String(root.prefix(1))
+        let rootLetterIndex = letters.firstIndex(of: rootLetter)!
+        let rootSemitone = noteToSemitone[root]!
+
+        let targetSemitone = (rootSemitone + semitoneOffset) % 12
+
+        let targetLetterIndex =
+            (rootLetterIndex + degreeStep) % 7
+
+        let targetLetter = letters[targetLetterIndex]
+        let naturalSemitone = naturalSemitones[targetLetter]!
+
+        var diff = targetSemitone - naturalSemitone
+
+        if diff > 6 { diff -= 12 }
+        if diff < -6 { diff += 12 }
+
+        let accidental: String
+
+        switch diff {
+        case -2: accidental = "♭♭"
+        case -1: accidental = "♭"
+        case 0:  accidental = ""
+        case 1:  accidental = "♯"
+        case 2:  accidental = "♯♯"
+        default: accidental = ""
+        }
+
+        return targetLetter + accidental
+    }
+    
     
     func makeChordOptions(correctChord: Chord, actualChord: Chord) -> [Chord] {
         let preferredNames = distractorMap[correctChord.type.name] ?? []
@@ -1400,15 +1444,15 @@ struct ContentView: View {
         }
     }
     
-    func generateGuideToneProgression() -> GuideToneProgression {
+    func generateGuideToneProgression(useSharp: Bool) -> GuideToneProgression {
         let minor7 = chordTypes.first { $0.name == "m7" }!
         let halfDiminished = chordTypes.first { $0.name == "ø" }!
         let dominant7 = chordTypes.first { $0.name == "7" }!
         let major7 = chordTypes.first { $0.name == "M7" }!
         
         //進行タイプの決定
-        let progressionType = GuideToneProgressionType.allCases.randomElement()!
-        //let progressionType = GuideToneProgressionType.backdoor    //test
+        //let progressionType = GuideToneProgressionType.allCases.randomElement()!
+        let progressionType = GuideToneProgressionType.secondary //test
 
         let chords: [Chord]
         
@@ -1425,81 +1469,172 @@ struct ContentView: View {
             notes[selectedRootIndex] == previousProgressionRoot &&
             selectedDominantTreatment == previousDominantTreatment
         
-        let root = notes[selectedRootIndex]
-        let iiIndex = (selectedRootIndex + 2) % 12
-        let normalVIndex = (selectedRootIndex + 7) % 12
-        let targetIndex = (selectedRootIndex + 7) % 12
-        let secondaryIiIndex = (targetIndex + 2) % 12
+        let root = useSharp
+            ? sharpNoteNames[selectedRootIndex]
+            : notes[selectedRootIndex]
+        
+        //let iiIndex = (selectedRootIndex + 2) % 12
+        //let normalVIndex = (selectedRootIndex + 7) % 12
+        //let targetIndex = (selectedRootIndex + 7) % 12
+        //let secondaryIiIndex = (targetIndex + 2) % 12
         
         switch progressionType {
         case .major:
-            let dominantIndex = selectedDominantTreatment == .normal
-                ? normalVIndex
-                : (normalVIndex + 6) % 12
+            let iiRoot = spelledNote(
+                from: root,
+                semitoneOffset: 2,
+                degreeStep: 1
+            )
+            let dominantRoot = selectedDominantTreatment == .normal
+            ? spelledNote(
+                from: root,
+                semitoneOffset: 7,
+                degreeStep: 4
+            )
+            : spelledNote(
+                from: root,
+                semitoneOffset: 1,
+                degreeStep: 1
+            )
             
             chords = [
-                Chord(root: notes[iiIndex], type: minor7),
-                Chord(root: notes[dominantIndex], type: dominant7),
+                Chord(root: iiRoot, type: minor7),
+                Chord(root: dominantRoot, type: dominant7),
                 Chord(root: root, type: major7)
             ]
             //print(selectedDominantTreatment, notes[iiIndex], notes[dominantIndex], root)
             
         case .minor:
+            let iiRoot = spelledNote(
+                from: root,
+                semitoneOffset: 2,
+                degreeStep: 1
+            )
+            
+            let dominantRoot = selectedDominantTreatment == .normal
+            ? spelledNote(
+                from: root,
+                semitoneOffset: 7,
+                degreeStep: 4
+            )
+            : spelledNote(
+                from: root,
+                semitoneOffset: 1,
+                degreeStep: 1
+            )
+            
             chords = [
-                Chord(root: notes[iiIndex], type: halfDiminished),
-                Chord(root: notes[normalVIndex], type: dominant7),
+                Chord(root: iiRoot, type: halfDiminished),
+                Chord(root: dominantRoot, type: dominant7),
                 Chord(root: root, type: minor7)
             ]
-        
-        case .backdoor:
-            let backdoorIiIndex = (selectedRootIndex + 5) % 12  // P4
-            let backdoorVIndex = (selectedRootIndex + 10) % 12  // m7
             
-            let dominantIndex = selectedDominantTreatment == .normal
-                ? backdoorVIndex
-                : (backdoorVIndex + 6) % 12
+        case .backdoor:
+            //let backdoorIiIndex = (selectedRootIndex + 5) % 12  // P4
+            //let backdoorVIndex = (selectedRootIndex + 10) % 12  // m7
+            
+            
+            let backdoorIiRoot = spelledNote(
+                from: root,
+                semitoneOffset: 5,
+                degreeStep: 3)
+            
+            let backdoorDominantRoot = selectedDominantTreatment == .normal
+                ? spelledNote(
+                    from: root,
+                    semitoneOffset: 10,
+                    degreeStep: 6
+                )
+                : spelledNote(
+                    from: root,
+                    semitoneOffset: 4,
+                    degreeStep: 3
+                )
             
             chords = [
-                Chord(root: notes[backdoorIiIndex], type: minor7),
-                Chord(root: notes[dominantIndex], type: dominant7),
+                Chord(root: backdoorIiRoot, type: minor7),
+                Chord(root: backdoorDominantRoot, type: dominant7),
                 Chord(root: root, type: major7)
             ]
         
         case .secondary:
-            let secondaryVIndex = (targetIndex + 7) % 12    // V of V
+            let secondaryIiRoot = spelledNote(
+                from: root,
+                semitoneOffset: 9,
+                degreeStep: 5
+            )
             
-            let dominantIndex = selectedDominantTreatment == .normal
-                ? secondaryVIndex
-                : (secondaryVIndex + 6) % 12
+            let secondaryDominantRoot = selectedDominantTreatment == .normal
+            ? spelledNote(
+                from: root,
+                semitoneOffset: 2,
+                degreeStep: 1
+            )
+            : spelledNote(
+                from: root,
+                semitoneOffset: 8,
+                degreeStep: 5
+            )
+            
+            let targetRoot = spelledNote(
+                from: root,
+                semitoneOffset: 7,
+                degreeStep: 4
+            )
             
             chords = [
-                Chord(root: notes[secondaryIiIndex], type: minor7),
-                Chord(root: notes[dominantIndex], type: dominant7),
-                Chord(root: notes[targetIndex], type: dominant7)
+                Chord(root: secondaryIiRoot, type: minor7),
+                Chord(root: secondaryDominantRoot, type: dominant7),
+                Chord(root: targetRoot, type: dominant7)
             ]
         
         case .chainIIV:
-            let precedingIiIndex = (selectedRootIndex + 4) % 12
-            let precedingVIndex = (selectedRootIndex + 9) % 12
+            let precedingIiRoot = spelledNote(
+                from: root,
+                semitoneOffset: 4,
+                degreeStep: 2
+            )
             
-            let firstDominantIndex = selectedDominantTreatment == .normal
-                ? precedingVIndex
-                : (precedingVIndex + 6) % 12
+            let firstDominantRoot = selectedDominantTreatment == .normal
+                ? spelledNote(
+                    from: root,
+                    semitoneOffset: 9,
+                    degreeStep: 5
+                )
+                : spelledNote(
+                    from: root,
+                    semitoneOffset: 3,
+                    degreeStep: 2
+                )
 
-            let secondDominantIndex = selectedDominantTreatment == .normal
-                ? normalVIndex
-                : (normalVIndex + 6) % 12
+            let iiRoot = spelledNote(
+                from: root,
+                semitoneOffset: 2,
+                degreeStep: 1
+            )
+            
+            let secondDominantRoot = selectedDominantTreatment == .normal
+                ? spelledNote(
+                    from: root,
+                    semitoneOffset: 7,
+                    degreeStep: 4
+                )
+                : spelledNote(
+                    from: root,
+                    semitoneOffset: 1,
+                    degreeStep: 1
+                )
             
             chords = [
-                Chord(root: notes[precedingIiIndex], type: minor7),
-                Chord(root: notes[firstDominantIndex], type: dominant7),
-                Chord(root: notes[iiIndex], type: minor7),
-                Chord(root: notes[secondDominantIndex], type: dominant7),
+                Chord(root: precedingIiRoot, type: minor7),
+                Chord(root: firstDominantRoot, type: dominant7),
+                Chord(root: iiRoot, type: minor7),
+                Chord(root: secondDominantRoot, type: dominant7),
                 Chord(root: root, type: major7),
             ]
         }
         
-        print(progressionType, selectedDominantTreatment)
+        print(selectedDominantTreatment, useSharp)
         previousProgressionRoot = root
         previousDominantTreatment = selectedDominantTreatment
         
@@ -1971,7 +2106,7 @@ struct QuestionPromptView: View {
         //どれを答えるかの表示
         if mode == .guideToneProgressions,
            answerStep < progressionAnswerSteps.count {
-            if !showingAnswer{
+            if !showingAnswer {
                 Text("3rd & 7th ?")
                     .font(.title2)
             }
