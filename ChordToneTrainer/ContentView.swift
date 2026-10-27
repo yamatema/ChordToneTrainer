@@ -118,6 +118,201 @@ enum GuideToneProgressionType: String, CaseIterable {
     }
 }
 
+//guideToneProgressionモード・セカンダリードミナントの進行先
+enum SecondaryTarget: CaseIterable {
+    case ii
+    case iii
+    case iv
+    case v
+    case vi
+    
+    var targetSemitoneOffset: Int {
+        switch self {
+        case .ii: return 2
+        case .iii: return 4
+        case .iv: return 5
+        case .v: return 7
+        case .vi: return 9
+        }
+    }
+    
+    var targetDegreeStep: Int {
+        switch self {
+        case .ii: return 1
+        case .iii: return 2
+        case .iv: return 3
+        case .v: return 4
+        case .vi: return 5
+        }
+    }
+    
+    var targetChordTypeName: String {
+        switch self {
+        case .ii, .iii, .vi:
+            return "m7"
+        case .iv:
+            return "M7"
+        case .v:
+            return "7"
+        }
+    }
+    
+    var followingSemitoneOffset: Int {
+        switch self {
+        case .ii: return 7
+        case .iii: return 9
+        case .iv: return 2
+        case .v: return 0
+        case .vi: return 2
+        }
+    }
+    
+    var followingDegreeStep: Int {
+        switch self {
+        case .ii: return 4
+        case .iii: return 5
+        case .iv: return 1
+        case .v: return 0
+        case .vi: return 1
+        }
+    }
+    
+    var followingChordTypeName: String {
+        switch self {
+        case .iii, .iv, .vi:
+            return "m7"
+        case .v:
+            return "M7"
+        case .ii:
+            return "7"
+        }
+    }
+    
+    //セカンダリードミナント：前段のコードの除外指定
+    func excludedPrecedingDegrees(
+        includeRelatedII: Bool,
+        treatment: DominantTreatment
+    ) -> Set<DiatonicDegree> {
+        switch (self, includeRelatedII, treatment) {
+
+        //related ii：なし, トライトーン置換：なし
+        case (.ii, false, .normal):
+            return [.ii]
+
+        case (.iii, false, .normal):
+            return [.iii]
+            
+        case (.iv, false, .normal):
+            return [.ii, .iv]
+            
+        case (.v, false, .normal):
+            return [.ii, .iii]
+            
+        case (.vi, false, .normal):
+            return [.ii, .vi]
+
+            
+        //related ii：なし, トライトーン置換：あり
+        case (.ii, false, .tritoneSub):
+            return [.ii]
+            
+        case (.iii, false, .tritoneSub):
+            return [.iii]
+            
+        case (.iv, false, .tritoneSub):
+            return [.ii, .iii, .iv]
+        /*
+        case (.v, false, .tritoneSub):
+            return []
+            
+        case (.vi, false, .tritoneSub):
+            return []
+         */
+            
+        //related ii：あり, トライトーン置換：なし
+        case (.ii, true, .normal):
+            return [.iii]
+        /*
+        case (.iii, true, .normal):
+            return [.iii]
+         */
+        case (.iv, true, .normal):
+            return [.i, .v]
+            
+        case (.v, true, .normal):
+            return [.ii, .vi]
+            
+        case (.vi, true, .normal):
+            return [.ii]
+
+        //related ii：あり, トライトーン置換：あり
+        case (.ii, true, .tritoneSub):
+            return [.ii, .iii]
+        /*
+        case (.iii, true, .tritoneSub):
+            return [.iii]
+         */
+        case (.iv, true, .tritoneSub):
+            return [.v]
+            
+        case (.v, true, .tritoneSub):
+            return [.ii, .vi]
+            
+        case (.vi, true, .tritoneSub):
+            return [.ii]
+        
+        
+        default:
+            return []
+         
+        }
+        
+    }
+    
+}
+
+enum DiatonicDegree: CaseIterable, Hashable {
+    case i
+    case ii
+    case iii
+    case iv
+    case v
+    case vi
+
+    var semitoneOffset: Int {
+        switch self {
+        case .i: return 0
+        case .ii: return 2
+        case .iii: return 4
+        case .iv: return 5
+        case .v: return 7
+        case .vi: return 9
+        }
+    }
+
+    var degreeStep: Int {
+        switch self {
+        case .i: return 0
+        case .ii: return 1
+        case .iii: return 2
+        case .iv: return 3
+        case .v: return 4
+        case .vi: return 5
+        }
+    }
+    
+    var chordTypeName: String {
+        switch self {
+        case .i, .iv:
+            return "M7"
+        case .ii, .iii, .vi:
+            return "m7"
+        case .v:
+            return "7"
+        }
+    }
+}
+
 //tonesToChordモード ヒント・正答表示制御
 enum RevealStep {
     case none
@@ -313,6 +508,14 @@ struct ContentView: View {
     @State private var isTestControlsExpanded = false
     @State private var forceRootCForTest = false
     @State private var forceDominant7ForTest = false
+    
+    //テスト用、使わないときは nil に
+    @State private var forcedUseSharpForTest: Bool? = true
+    @State private var forcedProgressionTypeForTest: GuideToneProgressionType? = .secondary
+    @State private var forcedRootIndexForTest: Int? = 10
+        // D♯:3, G♭:6, G♯:8, A♯:10
+    @State private var forcedDominantTreatmentForTest: DominantTreatment? = .normal
+    @State private var forcedIncludeRelatedIIForTest: Bool? = true
     
     
     var modeDisplayName: String {
@@ -980,9 +1183,7 @@ struct ContentView: View {
         currentQuestionHadMistake = false
         currentQuestionUsedShow = false
         
-        let useSharp = Bool.random()
-        //let useSharp = true //TEST
-        
+        let useSharp = forcedUseSharpForTest ?? Bool.random()
         let rootIndex = forceRootCForTest
             ? 0
             : Int.random(in: 0..<notes.count)
@@ -1156,7 +1357,7 @@ struct ContentView: View {
             previousRoot = actualRoot
             previousChordType = actualChordType
             
-            print(newRoot, newChordType.name)
+            //print(newRoot, newChordType.name)
             
         case .guideToneProgressions:
             chordTones = fullTones.map { $0.note }
@@ -1450,15 +1651,22 @@ struct ContentView: View {
         let dominant7 = chordTypes.first { $0.name == "7" }!
         let major7 = chordTypes.first { $0.name == "M7" }!
         
-        //進行タイプの決定
-        //let progressionType = GuideToneProgressionType.allCases.randomElement()!
-        let progressionType = GuideToneProgressionType.secondary //test
-
         let chords: [Chord]
         
-        var selectedRootIndex: Int
-        var selectedDominantTreatment: DominantTreatment
+        //進行タイプの決定
+        let progressionType =
+            forcedProgressionTypeForTest
+            ?? GuideToneProgressionType.allCases.randomElement()!
         
+        var selectedRootIndex =
+            forcedRootIndexForTest
+            ?? Int.random(in: 0..<notes.count)
+        
+        var selectedDominantTreatment =
+            forcedDominantTreatmentForTest
+            ?? (Bool.random() ? .normal : .tritoneSub)
+        
+        /*
         //progressionType, rootIndex, treatmentの重複回避
         repeat {
             //ここにprogressionType再選
@@ -1468,15 +1676,13 @@ struct ContentView: View {
         } while /* progressionType == previousProgressionType && */
             notes[selectedRootIndex] == previousProgressionRoot &&
             selectedDominantTreatment == previousDominantTreatment
+         */
+        
         
         let root = useSharp
             ? sharpNoteNames[selectedRootIndex]
             : notes[selectedRootIndex]
-        
-        //let iiIndex = (selectedRootIndex + 2) % 12
-        //let normalVIndex = (selectedRootIndex + 7) % 12
-        //let targetIndex = (selectedRootIndex + 7) % 12
-        //let secondaryIiIndex = (targetIndex + 2) % 12
+
         
         switch progressionType {
         case .major:
@@ -1530,11 +1736,11 @@ struct ContentView: View {
             ]
             
         case .backdoor:
-            //let backdoorIiIndex = (selectedRootIndex + 5) % 12  // P4
+            //let backdoorIIIndex = (selectedRootIndex + 5) % 12  // P4
             //let backdoorVIndex = (selectedRootIndex + 10) % 12  // m7
             
             
-            let backdoorIiRoot = spelledNote(
+            let backdoorIIRoot = spelledNote(
                 from: root,
                 semitoneOffset: 5,
                 degreeStep: 3)
@@ -1552,44 +1758,122 @@ struct ContentView: View {
                 )
             
             chords = [
-                Chord(root: backdoorIiRoot, type: minor7),
+                Chord(root: backdoorIIRoot, type: minor7),
                 Chord(root: backdoorDominantRoot, type: dominant7),
                 Chord(root: root, type: major7)
             ]
         
         case .secondary:
-            let secondaryIiRoot = spelledNote(
-                from: root,
-                semitoneOffset: 9,
-                degreeStep: 5
-            )
+            let secondaryTarget = SecondaryTarget.allCases.randomElement()!
             
-            let secondaryDominantRoot = selectedDominantTreatment == .normal
-            ? spelledNote(
-                from: root,
-                semitoneOffset: 2,
-                degreeStep: 1
-            )
-            : spelledNote(
-                from: root,
-                semitoneOffset: 8,
-                degreeStep: 5
-            )
-            
+            //target(セカンダリードミナントの進行先コード)
             let targetRoot = spelledNote(
                 from: root,
+                semitoneOffset: secondaryTarget.targetSemitoneOffset,
+                degreeStep: secondaryTarget.targetDegreeStep,
+            )
+            
+            let targetChordType = chordTypes.first {
+                $0.name == secondaryTarget.targetChordTypeName
+            }!
+            
+            //secondary dominant
+            let normalSecondaryDominantRoot = spelledNote(
+                from: targetRoot,
                 semitoneOffset: 7,
                 degreeStep: 4
             )
             
-            chords = [
-                Chord(root: secondaryIiRoot, type: minor7),
-                Chord(root: secondaryDominantRoot, type: dominant7),
-                Chord(root: targetRoot, type: dominant7)
-            ]
+            let secondaryDominantRoot: String
+
+            switch selectedDominantTreatment {
+            case .normal:
+                secondaryDominantRoot = normalSecondaryDominantRoot
+
+            case .tritoneSub:
+                secondaryDominantRoot = spelledNote(
+                    from: targetRoot,
+                    semitoneOffset: 1,
+                    degreeStep: 1
+                )
+            }
+            
+            //following(targetの後のコード)
+            let followingRoot = spelledNote(
+                from: root,
+                semitoneOffset: secondaryTarget.followingSemitoneOffset,
+                degreeStep: secondaryTarget.followingDegreeStep
+            )
+
+            let followingChordType = chordTypes.first {
+                $0.name == secondaryTarget.followingChordTypeName
+            }!
+            
+            //related ii(secondary dominantに接続するii)
+            let relatedIIRoot = spelledNote(
+                from: targetRoot,
+                semitoneOffset: 2,
+                degreeStep: 1
+            )
+            
+            
+            //related iiを問題に含めるか
+            let includeRelatedII =
+            forcedIncludeRelatedIIForTest ?? Bool.random()
+            
+            
+            let excluded = secondaryTarget.excludedPrecedingDegrees(
+                includeRelatedII: includeRelatedII,
+                treatment: selectedDominantTreatment
+            )
+
+            let candidates = DiatonicDegree.allCases.filter {
+                !excluded.contains($0)
+            }
+
+            let precedingDegree = candidates.randomElement()!
+            
+            //preceding(secondary dominantの前に置かれるコード)
+            let precedingRoot = spelledNote(
+                from: root,
+                semitoneOffset: precedingDegree.semitoneOffset,
+                degreeStep: precedingDegree.degreeStep
+            )
+            
+            let precedingChordType = chordTypes.first {
+                $0.name == precedingDegree.chordTypeName
+            }!
+            
+            let precedingChord = Chord(root: precedingRoot, type: precedingChordType)
+            let relatedIIChord = Chord(root: relatedIIRoot, type: minor7)
+            let secondaryDominantChord = Chord(root: secondaryDominantRoot, type: dominant7)
+            let targetChord = Chord(root: targetRoot, type: targetChordType)
+            let followingChord = Chord(root: followingRoot, type: followingChordType)
+            
+            //出題コード群決定
+
+            
+            if includeRelatedII {
+                chords = [
+                    precedingChord,
+                    relatedIIChord,
+                    secondaryDominantChord,
+                    targetChord,
+                    followingChord
+                ]
+            } else {
+                chords = [
+                    precedingChord,
+                    secondaryDominantChord,
+                    targetChord,
+                    followingChord
+                ]
+            }
+            
+            //print("useSharp:", useSharp, "root:", root, "preceding:", precedingDegree, ",", precedingRoot)
         
         case .chainIIV:
-            let precedingIiRoot = spelledNote(
+            let precedingIIRoot = spelledNote(
                 from: root,
                 semitoneOffset: 4,
                 degreeStep: 2
@@ -1626,7 +1910,7 @@ struct ContentView: View {
                 )
             
             chords = [
-                Chord(root: precedingIiRoot, type: minor7),
+                Chord(root: precedingIIRoot, type: minor7),
                 Chord(root: firstDominantRoot, type: dominant7),
                 Chord(root: iiRoot, type: minor7),
                 Chord(root: secondDominantRoot, type: dominant7),
@@ -1634,7 +1918,6 @@ struct ContentView: View {
             ]
         }
         
-        print(selectedDominantTreatment, useSharp)
         previousProgressionRoot = root
         previousDominantTreatment = selectedDominantTreatment
         
