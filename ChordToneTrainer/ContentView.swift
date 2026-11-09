@@ -382,6 +382,8 @@ struct GuideToneProgression {
     let chords: [Chord]
     let type: GuideToneProgressionType
     let dominantTreatment: DominantTreatment
+    //let secondaryDominantIndex: Int?
+    let dominantIndices: Set<Int>
 }
 
 struct ProgressionAnswerStep {
@@ -510,12 +512,12 @@ struct ContentView: View {
     @State private var forceDominant7ForTest = false
     
     //テスト用、使わないときは nil に
-    @State private var forcedUseSharpForTest: Bool? = true
-    @State private var forcedProgressionTypeForTest: GuideToneProgressionType? = .secondary
-    @State private var forcedRootIndexForTest: Int? = 10
+    @State private var forcedUseSharpForTest: Bool? = nil
+    @State private var forcedProgressionTypeForTest: GuideToneProgressionType? = nil
+    @State private var forcedRootIndexForTest: Int? = nil
         // D♯:3, G♭:6, G♯:8, A♯:10
-    @State private var forcedDominantTreatmentForTest: DominantTreatment? = .normal
-    @State private var forcedIncludeRelatedIIForTest: Bool? = true
+    @State private var forcedDominantTreatmentForTest: DominantTreatment? = nil
+    @State private var forcedIncludeRelatedIIForTest: Bool? = nil
     
     
     var modeDisplayName: String {
@@ -1683,9 +1685,14 @@ struct ContentView: View {
             ? sharpNoteNames[selectedRootIndex]
             : notes[selectedRootIndex]
 
+        //let secondaryDominantIndex: Int?
+        let dominantIndices: Set<Int>
         
         switch progressionType {
         case .major:
+            //secondaryDominantIndex = nil
+            dominantIndices = [1]
+            
             let iiRoot = spelledNote(
                 from: root,
                 semitoneOffset: 2,
@@ -1708,9 +1715,11 @@ struct ContentView: View {
                 Chord(root: dominantRoot, type: dominant7),
                 Chord(root: root, type: major7)
             ]
-            //print(selectedDominantTreatment, notes[iiIndex], notes[dominantIndex], root)
             
         case .minor:
+            //secondaryDominantIndex = nil
+            dominantIndices = [1]
+            
             let iiRoot = spelledNote(
                 from: root,
                 semitoneOffset: 2,
@@ -1736,9 +1745,8 @@ struct ContentView: View {
             ]
             
         case .backdoor:
-            //let backdoorIIIndex = (selectedRootIndex + 5) % 12  // P4
-            //let backdoorVIndex = (selectedRootIndex + 10) % 12  // m7
-            
+            //secondaryDominantIndex = nil
+            dominantIndices = [1]
             
             let backdoorIIRoot = spelledNote(
                 from: root,
@@ -1870,9 +1878,14 @@ struct ContentView: View {
                 ]
             }
             
+            dominantIndices = includeRelatedII ? [2] : [1]
+            
             //print("useSharp:", useSharp, "root:", root, "preceding:", precedingDegree, ",", precedingRoot)
         
         case .chainIIV:
+            //secondaryDominantIndex = nil
+            dominantIndices = [1,3]
+            
             let precedingIIRoot = spelledNote(
                 from: root,
                 semitoneOffset: 4,
@@ -1924,7 +1937,9 @@ struct ContentView: View {
         return GuideToneProgression(
             chords: chords,
             type: progressionType,
-            dominantTreatment: selectedDominantTreatment
+            dominantTreatment: selectedDominantTreatment,
+            //secondaryDominantIndex: secondaryDominantIndex
+            dominantIndices: dominantIndices
         )
     }
     
@@ -2312,6 +2327,8 @@ struct QuestionPromptView: View {
     let currentRoleLabel: String?
     let targetRolesText: String
     
+
+    
     var body: some View {
         if mode == .guideToneProgressions {
             let columns = [
@@ -2319,25 +2336,39 @@ struct QuestionPromptView: View {
             ]
             
             LazyVGrid(columns: columns, spacing: 6) {
-                ForEach(Array(chordNames.enumerated()), id:\.offset) { index, chordName in
-                    Text(chordName)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            answerStep == index
-                            ? Color.blue
-                            : Color.gray.opacity(0.2)
-                        )
-                        .foregroundStyle(
-                            answerStep == index
-                            ? .white
-                            : .primary
-                        )
-                        .clipShape(
-                            RoundedRectangle(cornerRadius: 6)
-                        )
-                        .font(.title2)
+                if let progression = currentProgression {
+                    ForEach(Array(chordNames.enumerated()), id:\.offset) { index, chordName in
+                        
+                        /*
+                        let isSecondaryDominant =
+                        progression.secondaryDominantIndex == index
+                        */
+                        let isDominant = progression.dominantIndices.contains(index) == true
+                        
+                        let backgroundColor: Color =
+                            if answerStep == index {
+                                .blue
+                            } else if isDominant {
+                                .orange.opacity(0.5)
+                            } else {
+                                .gray.opacity(0.2)
+                            }
+                        
+                        Text(chordName)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity)
+                            .background(backgroundColor)
+                            .foregroundStyle(
+                                answerStep == index
+                                ? .white
+                                : .primary
+                            )
+                            .clipShape(
+                                RoundedRectangle(cornerRadius: 6)
+                            )
+                            .font(.title2)
+                    }
                 }
             }
             
