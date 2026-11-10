@@ -79,6 +79,33 @@ enum GuideToneProgressionType: String, CaseIterable {
         }
     }
     
+    func dominantLabels(
+        treatment: DominantTreatment
+    ) -> [String] {
+        switch self {
+        case .major, .minor:
+            return [
+                treatment == .normal ? "V7" : "subV7"
+            ]
+
+        case .backdoor:
+            return [
+                treatment == .normal ? "♭VII7" : "sub♭VII7"
+            ]
+
+        case .secondary:
+            return [
+                treatment == .normal ? "V7" : "subV7"
+            ]
+
+        case .chainIIV:
+            return treatment == .normal
+                ? ["V7/ii", "V7"]
+                : ["subV7/ii", "subV7"]
+        }
+    }
+    
+    /* func dominantLabel と QuestionPromptView での制御に分配済み
     func progressionFormula(
         treatment: DominantTreatment
     ) -> String {
@@ -114,6 +141,37 @@ enum GuideToneProgressionType: String, CaseIterable {
                 treatment == .normal ? "V7" : "subV7"
             
             return "iim7/ii – \(dominantLabel1st) – iim7 – \(dominantLabel2nd) – IM7"
+        }
+    }
+    */
+    
+    func dominantAnnotation(
+        treatment: DominantTreatment,
+        target: SecondaryTarget?
+    ) -> String {
+        switch self {
+        case .secondary:
+            guard let target else { return "" }
+
+            let label =
+                treatment == .normal ? "V7" : "subV7"
+
+            return "\(label)/\(target.displayName)"
+
+        case .major:
+            return treatment == .normal ? "V7" : "subV7"
+
+        case .minor:
+            return treatment == .normal ? "V7" : "subV7"
+
+        case .backdoor:
+            return treatment == .normal ? "♭VII7" : "sub♭VII7"
+
+        case .chainIIV:
+            return treatment == .normal
+                ? "V7/ii, V7"
+                : "subV7/ii, subV7"
+
         }
     }
 }
@@ -185,6 +243,16 @@ enum SecondaryTarget: CaseIterable {
             return "M7"
         case .ii:
             return "7"
+        }
+    }
+    
+    var displayName: String {
+        switch self {
+        case .ii: return "ii"
+        case .iii: return "iii"
+        case .iv: return "IV"
+        case .v: return "V"
+        case .vi: return "vi"
         }
     }
     
@@ -382,8 +450,8 @@ struct GuideToneProgression {
     let chords: [Chord]
     let type: GuideToneProgressionType
     let dominantTreatment: DominantTreatment
-    //let secondaryDominantIndex: Int?
     let dominantIndices: Set<Int>
+    let secondaryTarget: SecondaryTarget?
 }
 
 struct ProgressionAnswerStep {
@@ -514,7 +582,7 @@ struct ContentView: View {
     //テスト用、使わないときは nil に
     @State private var forcedUseSharpForTest: Bool? = nil
     @State private var forcedProgressionTypeForTest: GuideToneProgressionType? = nil
-    @State private var forcedRootIndexForTest: Int? = nil
+    @State private var forcedRootIndexForTest: Int? = 0
         // D♯:3, G♭:6, G♯:8, A♯:10
     @State private var forcedDominantTreatmentForTest: DominantTreatment? = nil
     @State private var forcedIncludeRelatedIIForTest: Bool? = nil
@@ -1685,13 +1753,13 @@ struct ContentView: View {
             ? sharpNoteNames[selectedRootIndex]
             : notes[selectedRootIndex]
 
-        //let secondaryDominantIndex: Int?
         let dominantIndices: Set<Int>
+        let secondaryTarget: SecondaryTarget?
         
         switch progressionType {
         case .major:
-            //secondaryDominantIndex = nil
             dominantIndices = [1]
+            secondaryTarget = nil
             
             let iiRoot = spelledNote(
                 from: root,
@@ -1717,8 +1785,8 @@ struct ContentView: View {
             ]
             
         case .minor:
-            //secondaryDominantIndex = nil
             dominantIndices = [1]
+            secondaryTarget = nil
             
             let iiRoot = spelledNote(
                 from: root,
@@ -1745,8 +1813,8 @@ struct ContentView: View {
             ]
             
         case .backdoor:
-            //secondaryDominantIndex = nil
             dominantIndices = [1]
+            secondaryTarget = nil
             
             let backdoorIIRoot = spelledNote(
                 from: root,
@@ -1772,17 +1840,18 @@ struct ContentView: View {
             ]
         
         case .secondary:
-            let secondaryTarget = SecondaryTarget.allCases.randomElement()!
+            let selectedTarget = SecondaryTarget.allCases.randomElement()!
+            secondaryTarget = selectedTarget
             
             //target(セカンダリードミナントの進行先コード)
             let targetRoot = spelledNote(
                 from: root,
-                semitoneOffset: secondaryTarget.targetSemitoneOffset,
-                degreeStep: secondaryTarget.targetDegreeStep,
+                semitoneOffset: selectedTarget.targetSemitoneOffset,
+                degreeStep: selectedTarget.targetDegreeStep,
             )
             
             let targetChordType = chordTypes.first {
-                $0.name == secondaryTarget.targetChordTypeName
+                $0.name == selectedTarget.targetChordTypeName
             }!
             
             //secondary dominant
@@ -1809,12 +1878,12 @@ struct ContentView: View {
             //following(targetの後のコード)
             let followingRoot = spelledNote(
                 from: root,
-                semitoneOffset: secondaryTarget.followingSemitoneOffset,
-                degreeStep: secondaryTarget.followingDegreeStep
+                semitoneOffset: selectedTarget.followingSemitoneOffset,
+                degreeStep: selectedTarget.followingDegreeStep
             )
 
             let followingChordType = chordTypes.first {
-                $0.name == secondaryTarget.followingChordTypeName
+                $0.name == selectedTarget.followingChordTypeName
             }!
             
             //related ii(secondary dominantに接続するii)
@@ -1830,7 +1899,7 @@ struct ContentView: View {
             forcedIncludeRelatedIIForTest ?? Bool.random()
             
             
-            let excluded = secondaryTarget.excludedPrecedingDegrees(
+            let excluded = selectedTarget.excludedPrecedingDegrees(
                 includeRelatedII: includeRelatedII,
                 treatment: selectedDominantTreatment
             )
@@ -1883,8 +1952,8 @@ struct ContentView: View {
             //print("useSharp:", useSharp, "root:", root, "preceding:", precedingDegree, ",", precedingRoot)
         
         case .chainIIV:
-            //secondaryDominantIndex = nil
             dominantIndices = [1,3]
+            secondaryTarget = nil
             
             let precedingIIRoot = spelledNote(
                 from: root,
@@ -1938,8 +2007,8 @@ struct ContentView: View {
             chords: chords,
             type: progressionType,
             dominantTreatment: selectedDominantTreatment,
-            //secondaryDominantIndex: secondaryDominantIndex
-            dominantIndices: dominantIndices
+            dominantIndices: dominantIndices,
+            secondaryTarget: secondaryTarget
         )
     }
     
@@ -2339,10 +2408,6 @@ struct QuestionPromptView: View {
                 if let progression = currentProgression {
                     ForEach(Array(chordNames.enumerated()), id:\.offset) { index, chordName in
                         
-                        /*
-                        let isSecondaryDominant =
-                        progression.secondaryDominantIndex == index
-                        */
                         let isDominant = progression.dominantIndices.contains(index) == true
                         
                         let backgroundColor: Color =
@@ -2404,16 +2469,101 @@ struct QuestionPromptView: View {
         } else if mode == .guideToneProgressions,
                   isGuideToneProgressionFinished,
                   let progression = currentProgression {
-            Text(
-                "\(progression.type.displayName):\n" +
-                progression.type.progressionFormula(
-                    treatment: progression.dominantTreatment
-                )
+            
+            let annotation = progression.type.dominantAnnotation(
+                treatment: progression.dominantTreatment,
+                target: progression.secondaryTarget
             )
-                .font(.title3)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            
+            let dominantLabels = progression.type.dominantLabels(
+                treatment: progression.dominantTreatment
+            )
+            let dominantLabel = dominantLabels[0]
+            
+            VStack(spacing: 4) {
+                Text(progression.type.displayName)
+                    .font(.title3)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                if progression.type == .secondary {
+                    Text(annotation)
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                        .fontWeight(.heavy)
+                        .fontDesign(.serif)
+                } else {
+                    switch progression.type {
+                    case .major:
+                        HStack(spacing: 4) {
+                            Text("iim7 - ")
+                            Text(dominantLabel)
+                                .foregroundStyle(.orange)
+                                .fontDesign(.serif)
+                                .fontWeight(.heavy)
+                            Text(" - IM7")
+                        }
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        
+                    case .minor:
+                        HStack(spacing: 4) {
+                            Text("iiø – ")
+                            Text(dominantLabel)
+                                .foregroundStyle(.orange)
+                                .fontDesign(.serif)
+                                .fontWeight(.heavy)
+                            Text(" – im7")
+                        }
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    case .backdoor:
+                        HStack(spacing: 4) {
+                            Text("ivm7 – ")
+                            Text(dominantLabel)
+                                .foregroundStyle(.orange)
+                                .fontDesign(.serif)
+                                .fontWeight(.heavy)
+                            Text(" – IM7")
+                        }
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    case .chainIIV:
+                        HStack(spacing: 4) {
+                            Text("iim7/ii – ")
+                            Text(dominantLabels[0])
+                                .foregroundStyle(.orange)
+                                .fontDesign(.serif)
+                                .fontWeight(.heavy)
+                            Text(" - iim7 – ")
+                            Text(dominantLabels[1])
+                                .foregroundStyle(.orange)
+                                .fontDesign(.serif)
+                                .fontWeight(.heavy)
+                            Text(" – IM7")
+                        }
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    case .secondary:
+                        EmptyView()
+                    
+                    }
+                    
+                    
+                }
+            }
         }
         
         
